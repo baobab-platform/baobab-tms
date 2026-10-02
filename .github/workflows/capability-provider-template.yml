@@ -1,0 +1,71 @@
+# ==============================================================================
+# Baobab Engine Template
+# Capability provider template conformance
+#
+# File: .github/workflows/capability-provider-template.yml
+#
+# PURPOSE:
+#   Proves .baobab/capability-provider.yaml.example is a genuine
+#   baobab-platform/shared provider declaration once its placeholders are
+#   replaced: it validates against
+#   contracts/capability/v1/provider-declaration.schema.json and against the
+#   Shared Canonical Capability Catalogue (ADR-SHARED-017, EA-02).
+#
+#   Template-only. A repository created from this template validates its
+#   real .baobab/capability-provider.yaml through Foundation CI instead, and
+#   should delete this workflow together with the .example file.
+#
+# SHARED PIN:
+#   SHARED_REF is the merge commit on baobab-platform/shared main of
+#   shared#141, which introduced scripts/capability_catalogue.py
+#   (ADR-SHARED-017). Move it forward whenever the provider-declaration
+#   contract changes.
+# ==============================================================================
+
+name: Capability Provider Template
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".baobab/capability-provider.yaml.example"
+      - ".github/workflows/capability-provider-template.yml"
+  pull_request:
+    paths:
+      - ".baobab/capability-provider.yaml.example"
+      - ".github/workflows/capability-provider-template.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  SHARED_REF: 66b0178312694c4391bc53de56f912e8b455a571
+
+jobs:
+  conformance:
+    name: Validate capability-provider.yaml.example
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Checkout baobab-platform/shared
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: baobab-platform/shared
+          ref: ${{ env.SHARED_REF }}
+          path: .shared
+          persist-credentials: false
+      - uses: actions/setup-python@ad3497abcd142e169a10aac37abd5175c44f33c4 # v7.0.0+6 (main, 2026-09-09)
+        with:
+          python-version: "3.13"
+      - name: Install the Shared validation runtime
+        run: python -m pip install --disable-pip-version-check -r .shared/.github/foundation-tests/requirements.txt
+      - name: Validate the template against Shared
+        run: >-
+          python .shared/scripts/capability_catalogue.py
+          --contracts-root .shared/contracts
+          validate-declaration .baobab/capability-provider.yaml.example
+          --template --engine-id baobab-example

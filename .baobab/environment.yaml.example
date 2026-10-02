@@ -1,0 +1,93 @@
+# Baobab Development Environment Contract
+#
+# Purpose:
+#   Declares the minimum baobab-dev environment required to develop,
+#   build and test this repository.
+#
+# This file does NOT describe:
+#   - Baobab domain/business capabilities or Control Plane
+#     CapabilityProviders -- those are .baobab/capability-provider.yaml
+#     (Shared capability/v1 provider-declaration.schema.json);
+#   - Foundation repository classification -- that is .baobab/repository.yaml;
+#   - production deployment topology;
+#   - application dependencies.
+#
+# Canonical schema:
+#   baobab-platform/shared/contracts/development-environment/schema.yaml
+#
+# baobab-dev capability source:
+#   baobab-platform/baobab-dev/config/capabilities.yaml
+#
+# Rename to .baobab/environment.yaml once every placeholder is resolved.
+
+schema:
+  name: "baobab-platform-development-environment-contract"
+  version: "1.0"
+
+application:
+  # Repository/application identifier. Normally identical to the repository slug.
+  name: "<engine-repo-name>"
+
+  # Repository/application release version, NOT the baobab-dev version.
+  version: "0.1.0"
+
+  # Do not add entity_id for an engine. It is not the engine identity and
+  # must not be used as a substitute for Control Plane Engine registration.
+
+environment:
+  provider: "baobab-dev"
+
+  # Select the narrowest currently available profile whose declared
+  # capabilities cover this repository's actual development needs.
+  #
+  # Backend/headless engines normally use `full` today unless a more
+  # appropriate profile exists.
+  #
+  # If a required language/tool is not supplied by baobab-dev, layer it
+  # explicitly through the devcontainer and do NOT falsely declare it below
+  # as a baobab-dev capability.
+  profile: "full"
+
+  # Minimum compatible baobab-dev release.
+  # Must match the selected image family used by .devcontainer configuration
+  # and must not be lower than Foundation's current profile floor.
+  minimum_version: "<current-compatible-baobab-dev-version>"
+
+  # Minimum Development Environment Contract version understood by this repo.
+  contract_minimum_version: "1.0"
+
+compatibility_policy:
+  # Whether tool/runtime versions should be treated as strict compatibility
+  # requirements for this repository.
+  strict_runtime_versions: true
+
+  # Patch upgrades may be accepted when they remain contract-compatible.
+  allow_newer_patch_versions: true
+
+  # Minor upgrades require deliberate compatibility validation by default.
+  allow_newer_minor_versions: false
+
+  # Versions below environment.minimum_version are not accepted.
+  allow_older_versions: false
+
+validation:
+  # ONLY baobab-dev development capabilities actually required by this repo.
+  #
+  # Use canonical dotted leaf names from
+  # baobab-dev/config/capabilities.yaml.
+  #
+  # Do NOT put Baobab domain capability keys here.
+  required_capabilities:
+    - "development.github_cli"
+    # Add only capabilities genuinely required from baobab-dev, for example:
+    # - "languages.node"
+    # - "languages.python"
+    # - "languages.java"
+    # - "database.postgresql"
+    # - "development.docker"
+    # - "development.maven"
+
+notes:
+  # Optional explanatory information only.
+  # No correctness requirement should exist only in `notes`.
+  - "<repo-specific development environment note>"

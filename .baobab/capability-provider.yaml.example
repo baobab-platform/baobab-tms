@@ -1,0 +1,124 @@
+# Target path: <new-repo>/.baobab/capability-provider.yaml
+#
+# Baobab Capability Provider Declaration
+#
+# Conforms to:
+#   baobab-platform/shared/contracts/capability/v1/provider-declaration.schema.json
+# Governing decision:
+#   baobab-platform/shared ADR-SHARED-017 (EA-02)
+#
+# Answers ONE question: which canonical Baobab domain capabilities do this
+# engine's CapabilityProviders implement, or formally plan to implement?
+#
+# The three .baobab contracts mean three different things by "capability".
+# Never copy a value from one into another:
+#   repository.yaml          Foundation technical traits (engine, node, container)
+#   environment.yaml         baobab-dev toolchain capabilities (languages.node)
+#   capability-provider.yaml canonical capability keys from Shared's
+#                            contracts/capability/v1/catalogue.yaml
+#                            (e.g. payment.payment.capture)  <- this file
+#
+# Authority boundaries:
+#   - Shared defines what each capability means (catalogue.yaml). This file
+#     only references capabilities; it never defines one. A capability_key
+#     that is not in the catalogue fails validation.
+#   - This repository declares which of them its providers implement.
+#   - EA-09 certifies implementations. There is no `certified` field.
+#   - The Control Plane registers providers, activates support, and owns
+#     topology, bindings, grants, health and resolution.
+#
+# So this file MUST NOT (and the schema cannot) declare: certification,
+# lifecycle/ACTIVE state, CapabilityBindings, CapabilityGrants or tenant
+# entitlement, EngineInstances or releases, health, hostnames, addresses or
+# credentials.
+#
+# Every <placeholder> below must be replaced. Validate with a Shared checkout:
+#   python3 <shared>/scripts/capability_catalogue.py validate-declaration \
+#     .baobab/capability-provider.yaml --engine-id <engine-id> --repository-root .
+# This template itself is validated with --template (see
+# .github/workflows/capability-provider-template.yml).
+#
+# A scaffold with nothing implemented yet may omit `providers` and declare
+# only `planned_capabilities` (at least one of the two must be non-empty).
+
+schema:
+  name: baobab-capability-provider-declaration
+  version: "1.0"
+
+engine:
+  # The Baobab engine/service identity: this repository's name, e.g.
+  # baobab-trade (ADR-SHARED-012). Never a technology such as medusa.
+  engine_id: <engine-id>
+
+providers:
+  # One entry per CapabilityProvider this engine owns. Several are normal,
+  # e.g. two implementations during a provider migration
+  # (<engine-id>.keycloak and <engine-id>.ory).
+  - # <engine-id>.<provider-name>. The first segment MUST equal engine_id.
+    provider_key: <engine-id>.<provider-name>
+    name: <provider-display-name>
+
+    # BAOBAB_ENGINE | EXTERNAL_SERVICE | PLATFORM_NATIVE | ADAPTER
+    provider_type: BAOBAB_ENGINE
+
+    # The underlying technology or provider family, e.g. medusa, idempiere,
+    # payload, haystack, ory, hyperswitch. Never part of a capability key.
+    implementation_key: <implementation-key>
+
+    # true when the provider only simulates its capabilities
+    # (development/integration). A simulated provider can never be
+    # production permitted.
+    simulated: false
+
+    # Whether this implementation may EVER be promoted for production use.
+    # Permission is not activation: the Control Plane still governs that.
+    production_permitted: false
+
+    # Optional logical invocation reference. service://<engine-id>/<service>
+    # only: never a hostname, address, port or credential.
+    invocation:
+      service_reference: service://<engine-id>/<service-name>
+      protocol: http # http | grpc
+
+    support:
+      # One entry per canonical capability this provider implements.
+      - capability_key: <canonical-capability-key>
+
+        # Contract majors of that capability implemented here; each must be
+        # a major Shared defines for it.
+        contract_versions:
+          - <contract-major>
+
+        # PARTIAL | IMPLEMENTED. Implementation completeness only: never
+        # ACTIVE, CERTIFIED or HEALTHY. PARTIAL support is never registered.
+        implementation_status: IMPLEMENTED
+
+        # Optional. `decision` may be omitted where the canonical contract
+        # itself is sufficient authority.
+        provenance:
+          authority:
+            repository: <owning-repository>
+            decision: <governing-adr>
+
+        # Required for IMPLEMENTED: repository-relative paths showing why the
+        # implementation is claimed. Types: source, test, contract-test,
+        # integration-test, simulation, conformance-fixture. Evidence is
+        # traceability, not certification.
+        implementation_evidence:
+          - type: source
+            path: <evidence-path>
+
+# Capability intent that is not implemented yet. For architecture visibility
+# only: planned capabilities never become provider support, bindings or
+# resolvable capabilities.
+#   CANDIDATE | PROPOSED | CONTRACTING -> name it with proposed_key (it is not
+#                                         canonical yet, and its namespace may
+#                                         still be under review)
+#   CONTRACTED                         -> reference the canonical capability_key
+#                                         that Shared now defines
+planned_capabilities:
+  - proposed_key: <proposed-capability-key>
+    proposal_status: CANDIDATE
+    provenance:
+      authority:
+        repository: <owning-repository>
