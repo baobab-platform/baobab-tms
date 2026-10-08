@@ -12,7 +12,7 @@
 ## 1. Decision
 TMS owns physical delivery execution facts, attempts, custody handoffs and operational exceptions. **Delivery** is a physical execution milestone; **recipient acceptance** may be a distinct commercial/legal act; **proof-of-delivery (POD)** is a document/evidence object whose semantic identity and immutable versions belong to **Trade Docs**. Do not embed original signed PDFs or create parallel TradeDocument authority in TMS.
 
-\`\`\`text
+```text
 TransportMovement / Leg / Call
       -> arrival-at-delivery-location (observation)
       -> delivery attempt
@@ -20,7 +20,7 @@ TransportMovement / Leg / Call
           -> FAILED/REFUSED/PARTIAL/RESCHEDULED/RETURNED
       -> POD evidence reference via Trade Docs
       -> Trade/ERP consumer effects only under their accepted rules
-\`\`\`
+```
 
 ## 2. Distinct state axes
 | Axis | Example | Authority |
@@ -61,10 +61,10 @@ Customer-facing promise and cancellation terms belong Trade/Thamani or the contr
 
 **Not claimed:** legally sufficient POD in all jurisdictions, customs release, recipient legal acceptance, or access to live carrier evidentiary services.
 
-## 8. Alternatives and governance
+## 7. Alternatives and governance
 
 Rejected: monolithic TMS-vendor domain authority, unaudited vendor callbacks, third-party IDs as canonical identity, copying document/ERP/Regulations decisions, tenant-specific engine forks, declaring candidate capabilities canonical or treating a successful sandbox test as CP certification. Accepted Shared contracts and previous Accepted TMS decisions take precedence. Any cross-owner wire semantic change must go through Shared as a separate PR.
 
-## 9. Decision follow-up
+## 8. Decision follow-up
 
 Each gate is an independent implementation checkpoint with a PR, source paths, contract fixtures, negative tests, runtime metrics and explicitly documented unimplemented cases. The decision remains **Proposed** until formally accepted; no event/capability activation, staging approval or production acceptance is granted here.

@@ -12,7 +12,7 @@
 ## 1. Decision
 TMS owns **transport-domain operational observations and their verified projections**, not absolute truth about all externally performed activities. Model each TransportEvent as an immutable sourced fact/observation with independently recorded **occurred_at**, **recorded_at**, source, subject, tenant, source-event identifier, location (when permissible), confidence/verification, provider signature context, correlation/causation and payload/reference. An event is not the mutable current state. Telemetry samples are not automatically authorised milestones.
 
-\`\`\`mermaid
+```mermaid
 flowchart LR
  A["Carrier/GPS/terminal/driver observation"] --> B["Auth + source identity"]
  B --> C["Normalize / validate / deduplicate"]
@@ -21,7 +21,7 @@ flowchart LR
  D --> F["Exception/reconciliation"]
  E --> G["Tenant-scoped tracking query"]
  G --> H["Thamani or ZuriBeans experience"]
-\`\`\`
+```
 
 ## 2. Types of observations
 | Class | Examples | Decision rule |

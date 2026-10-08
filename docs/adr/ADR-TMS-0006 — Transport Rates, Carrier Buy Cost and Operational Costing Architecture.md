@@ -12,13 +12,13 @@
 ## 1. Decision
 TMS owns **operational cost inputs**, rate observations and a reproducible **transport buy-cost estimate**, not final customer sale price, margin, tax invoice, payable posting, settled payment or accounting truth. Monetary amounts are decimal-safe with explicit currency, tax treatment, units, provenance and validity windows. This ADR does not activate an automated quoting product.
 
-\`\`\`text
+```text
 Carrier offer / contracted buy tariff / authorised rate table
    + planned route, cargo, transport service and accessorial assumptions
    -> TMS OperationalCostEstimate (versioned, scenario-specific)
    -> Trade commercial pricing / service quotation as permitted
    -> ERP actual invoice, payable, accounting and reconciliation
-\`\`\`
+```
 
 ## 2. Rate and cost vocabulary
 | Item | Canonical meaning | Exclusion |
@@ -47,7 +47,7 @@ TMS MAY propose cheapest feasible carrier or optimised transport *based on decla
 For Thamani, customer shipping prices must not accidentally become TMS canonical cost fields. For ZuriBeans, export B2B finance documents must cite the proper ERP/Trade commercial amount, not an internal TMS estimate.
 
 ## 5. APIs and events
-Potential ports: §CarrierTariffReadPort§, §EstimateCostPort§, §ExternalFxObservationPort§, §ERPActualReferencePort§. Proposed actions: version tariff, estimate plan cost, compare offers, record accessorial observation, reconcile estimated vs actual. Material historical estimates are immutable versions with effective_at/recorded_at and provenance. No proposed event or canonical capability is executable until Shared governance approves it.
+Potential ports: `CarrierTariffReadPort`, `EstimateCostPort`, `ExternalFxObservationPort`, `ERPActualReferencePort`. Proposed actions: version tariff, estimate plan cost, compare offers, record accessorial observation, reconcile estimated vs actual. Material historical estimates are immutable versions with effective_at/recorded_at and provenance. No proposed event or canonical capability is executable until Shared governance approves it.
 
 ## 6. Implementation gates
 | Gate | Evidence |
@@ -61,10 +61,10 @@ Potential ports: §CarrierTariffReadPort§, §EstimateCostPort§, §ExternalFxOb
 
 Neither tariff accuracy nor actual profitability is certified by passing unit tests. Cost estimation can remain unavailable without blocking core TMS physical event processing when the user has not requested a costed service.
 
-## 8. Rejected shortcuts and governance
+## 7. Rejected shortcuts and governance
 
 Do not reuse an unrelated engine's authoritative database, mint globally authoritative organisations, substitute a vendor tracking ID for a Baobab canonical object, hard-code an estate/market, publish unregistered capability or event keys, or call a simulated/synthetic operation production-ready. Changes affecting another owner must first be reconciled in **baobab-platform/shared** and the relevant owning engine. Approval of this ADR is not evidence of runtime fitness, certification or deployment.
 
-## 9. Decision follow-up
+## 8. Decision follow-up
 
 Implement in separate gate-scoped PRs. Maintain a conformance matrix linking each normative rule to code, tests, contract fixtures and open limitations. Any key or API name in this ADR is **illustrative**, not automatically part of the canonical capability catalogue. Keep ADR-TMS-0001/0002 and accepted Shared authority in force; explain and obtain approval for any needed supersession.

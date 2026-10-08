@@ -30,7 +30,7 @@ One vehicle can pull several trailers sequentially, carry multiple consignments,
 - Validate transport mode, cargo constraints, regulatory fitness, serviceability and provider entitlement at **assignment time**, not solely at resource creation.
 - Use transactional locking/unique exclusion constraints to prevent overlapping incompatible resource commitments and double allocation; account for staged assignment vs confirmed.
 - Permit capacity splitting, intermodal loading and detachment only through auditable transitions; cargo source quantities and ownership remain Trade/ERP governed.
-- Resource unavailable, uninspected or credential expired is §BLOCKED§ for guarded dispatch. Return explicit reason/evidence ref and replan; do not silently downgrade safety constraints.
+- Resource unavailable, uninspected or credential expired is `BLOCKED` for guarded dispatch. Return explicit reason/evidence ref and replan; do not silently downgrade safety constraints.
 - Commercial asset-light booking may reference only an external carrier resource class until confirmed; do not fabricate a truck plate or vessel ID.
 - Resource telemetry and position are sourced observations, not intrinsic mutable identity. Financial costs and depreciation still belong ERP.
 
@@ -52,10 +52,10 @@ Candidate local operations: resolve resource; attach validated capabilities/cert
 
 No fleet device protocol, fuel/maintenance system, telematics vendor or third-party certification is selected here. Financial asset management stays in ERP.
 
-## 8. Rejected shortcuts and governance
+## 7. Rejected shortcuts and governance
 
 Do not reuse an unrelated engine's authoritative database, mint globally authoritative organisations, substitute a vendor tracking ID for a Baobab canonical object, hard-code an estate/market, publish unregistered capability or event keys, or call a simulated/synthetic operation production-ready. Changes affecting another owner must first be reconciled in **baobab-platform/shared** and the relevant owning engine. Approval of this ADR is not evidence of runtime fitness, certification or deployment.
 
-## 9. Decision follow-up
+## 8. Decision follow-up
 
 Implement in separate gate-scoped PRs. Maintain a conformance matrix linking each normative rule to code, tests, contract fixtures and open limitations. Any key or API name in this ADR is **illustrative**, not automatically part of the canonical capability catalogue. Keep ADR-TMS-0001/0002 and accepted Shared authority in force; explain and obtain approval for any needed supersession.

@@ -13,28 +13,28 @@
 TMS is a multi-tenant, independently deployable engine. **Control Plane** is authoritative for tenant, legal entity, approved market participation, canonical organisation, capability provider/binding and context. **IAM** authenticates principals. TMS enforces domain-specific access and foreign-object relationship checks; it never mints global tenants, substitutes deployment IDs for business identities or gives Nabhold subsidiaries inherited access by common parentage.
 
 ## 2. Context trust chain
-\`\`\`mermaid
+```mermaid
 flowchart TD
   A["Digital estate / carrier / workload"] --> B["IAM-authenticated identity"]
   B --> C["CP-issued context_id"]
   C --> D["TMS verifies audience, caller binding, expiry, scope, tenant, legal entity"]
   D --> E["Domain ownership & resource relationship policy"]
   E --> F["TMS command/query, DB and events"]
-\`\`\`
+```
 
-The caller may request a context, but user-supplied §tenant_id§, §legal_entity_id§, marketplace slug, X-Tenant header or query parameter alone **never** establish trusted operating scope. Context redemption must be bound to authenticated actor/workload/audience and the operation. Maintain a strategy for short-lived verification/caching that fails closed on revocation or unknown context; do not require a synchronous CP call for each internal TMS domain object creation if an already-verified context can be trusted.
+The caller may request a context, but user-supplied `tenant_id`, `legal_entity_id`, marketplace slug, X-Tenant header or query parameter alone **never** establish trusted operating scope. Context redemption must be bound to authenticated actor/workload/audience and the operation. Maintain a strategy for short-lived verification/caching that fails closed on revocation or unknown context; do not require a synchronous CP call for each internal TMS domain object creation if an already-verified context can be trusted.
 
 ## 3. Canonical identity and reference table
 | Reference | Owner / allowed use | Constraint |
 |---|---|---|
-| §tenant_id / legal_entity_id / context_id§ | CP | Scope and authority, not a shipment UUID |
-| §LogisticsShipment / Consignment / TransportMovement IDs§ | TMS | Stable TMS domain identity, unaffected by deployment or provider swap |
-| §CanonicalEntity§ | CP registry identity | Not automatically equal to TMS domain row |
-| §CrossEngineObjectReference§ | Shared schema; referenced object owned by respective engine | Explicit owner_engine_id, object_type, ID, scope, reference_mode, pinning |
-| §ExternalReference§ | External provider native object mapping | Never canonical business identity; retain provider/market scope |
-| §engine_instance_id§ | CP engine topology | Routing/deployment only, not portable shipment identity |
-| §TradeShipment§ | baobab-trade | Correlate to TMS LogisticsShipment, do not reassign producer authority |
-| §DocumentVersion§ | Trade Docs | Pin immutable version; possession does not grant access |
+| `tenant_id / legal_entity_id / context_id` | CP | Scope and authority, not a shipment UUID |
+| `LogisticsShipment / Consignment / TransportMovement IDs` | TMS | Stable TMS domain identity, unaffected by deployment or provider swap |
+| `CanonicalEntity` | CP registry identity | Not automatically equal to TMS domain row |
+| `CrossEngineObjectReference` | Shared schema; referenced object owned by respective engine | Explicit owner_engine_id, object_type, ID, scope, reference_mode, pinning |
+| `ExternalReference` | External provider native object mapping | Never canonical business identity; retain provider/market scope |
+| `engine_instance_id` | CP engine topology | Routing/deployment only, not portable shipment identity |
+| `TradeShipment` | baobab-trade | Correlate to TMS LogisticsShipment, do not reassign producer authority |
+| `DocumentVersion` | Trade Docs | Pin immutable version; possession does not grant access |
 
 ## 4. Isolation enforcement
 Enforce tenant+legal-entity+relationship scope at **API**, domain service, SQL query/transaction, inbox, outbox, telemetry, caches, async workers and adapter credentials. If shared DB tables are used, tenant is mandatory and indexes/uniqueness are tenant-scoped; use PostgreSQL row-level security as defence-in-depth only if tests validate both session setup and fail-closed defaults. Background workers may only act under an explicitly resolved verified service context/authorisation snapshot with refresh/revocation handling.

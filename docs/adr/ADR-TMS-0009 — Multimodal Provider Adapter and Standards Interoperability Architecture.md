@@ -12,7 +12,7 @@
 ## 1. Decision
 Implement mode-specific **anti-corruption adapters** behind canonical TMS ports rather than installing a universal freight stack or encoding DCSA/IATA/GS1 message schemas as Baobab domain entities. The headless engine can support road first and progressively add maritime, air, rail, inland waterway, courier and multimodal. "Multimodal" is composition of movements, documents, handoffs and bookings; it is not one vehicle type.
 
-\`\`\`mermaid
+```mermaid
 flowchart LR
   BAO["Baobab TMS canonical domain"] --> P["Versioned provider ports"]
   P --> R["Road carrier/webhook adapter"]
@@ -23,7 +23,7 @@ flowchart LR
   M --> E
   A --> E
   G --> E
-\`\`\`
+```
 
 ## 2. Standard families and reach
 | Mode / purpose | Industry model to evaluate | Adapter constraint |
@@ -37,7 +37,7 @@ flowchart LR
 Standards and externally valid schema versions must be pinned at each adapter configuration and conformance test. Avoid claiming integration with a specific country's Customs electronic system: that belongs Trade Docs authority adapters.
 
 ## 3. Port contracts
-Common ports include §BookingProviderPort§, §CapacityProviderPort§, §MovementSchedulePort§, §TrackingObservationPort§, §ResourceLookupPort§ and §TransportDocumentReferencePort§. Every port supplies canonical context, request ID, explicit timeouts/deadlines, trace correlation, provider operation type, external-reference mapping and policy. The response separates provider acknowledgement, later final outcome, retriable technical failure, permanent rejection and uncertain outcome. Source-specific fields that have no canonical equivalent are kept as bounded extension metadata with provenance.
+Common ports include `BookingProviderPort`, `CapacityProviderPort`, `MovementSchedulePort`, `TrackingObservationPort`, `ResourceLookupPort` and `TransportDocumentReferencePort`. Every port supplies canonical context, request ID, explicit timeouts/deadlines, trace correlation, provider operation type, external-reference mapping and policy. The response separates provider acknowledgement, later final outcome, retriable technical failure, permanent rejection and uncertain outcome. Source-specific fields that have no canonical equivalent are kept as bounded extension metadata with provenance.
 
 ## 4. Routing, callbacks and compatibility
 - Authenticate transport partners through IAM workload federation, scoped mTLS/OAuth/client credentials or independently audited adapter methods; never one global shared carrier token for all tenants.
@@ -62,10 +62,10 @@ Each adapter must publish **supported** operation matrix: CREATE_BOOKING, CANCEL
 
 The platform may publish support only for proven operations/modes. Capability declarations and active bindings require separate Shared/CP and EA-09 evidence.
 
-## 8. Alternatives and governance
+## 7. Alternatives and governance
 
 Rejected: monolithic TMS-vendor domain authority, unaudited vendor callbacks, third-party IDs as canonical identity, copying document/ERP/Regulations decisions, tenant-specific engine forks, declaring candidate capabilities canonical or treating a successful sandbox test as CP certification. Accepted Shared contracts and previous Accepted TMS decisions take precedence. Any cross-owner wire semantic change must go through Shared as a separate PR.
 
-## 9. Decision follow-up
+## 8. Decision follow-up
 
 Each gate is an independent implementation checkpoint with a PR, source paths, contract fixtures, negative tests, runtime metrics and explicitly documented unimplemented cases. The decision remains **Proposed** until formally accepted; no event/capability activation, staging approval or production acceptance is granted here.

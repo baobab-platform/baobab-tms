@@ -12,7 +12,7 @@
 ## 1. Decision
 Expose a **headless, context-bound command/query API** and asynchronous domain-event integration. No direct database sharing, distributed ACID or synchronous chain of Trade -> TMS -> ERP -> Trade Docs is permitted as the sole mechanism for completing a transport workflow. Every consequential write uses local PostgreSQL transaction + outbox; external messages arrive via verified inbox and idempotent handlers.
 
-\`\`\`mermaid
+```mermaid
 sequenceDiagram
   participant C as Authorised caller / Trade
   participant T as TMS API
@@ -28,7 +28,7 @@ sequenceDiagram
   W->>X: Signed/versioned message
   X-->>W: Ack or retriable failure
   W->>DB: Delivery outcome, retry or DLQ
-\`\`\`
+```
 
 The API response indicates command **acceptance/transaction** status, not external carrier success unless confirmed from the authoritative source.
 

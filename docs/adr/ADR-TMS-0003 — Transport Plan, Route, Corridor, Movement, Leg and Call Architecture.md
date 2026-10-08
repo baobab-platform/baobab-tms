@@ -12,7 +12,7 @@
 ## 1. Decision
 A **TransportPlan** is an independently versioned intended execution of one or more LogisticsShipment/Consignment allocations. A **TransportRoute** is the selected ordered itinerary for a plan version. A **TransportMovement** is an actual or scheduled trip, voyage or flight performed by an operating transport means. A **TransportLeg** is the segment of a movement between calls or operational nodes. A **TransportCall** is a planned or actual arrival/departure at a named facility/location. A **LogisticsCorridor** is a reusable route-pattern reference, NOT a trade lane, legal permission, a specific route or an instantiated movement.
 
-\`\`\`mermaid
+```mermaid
 flowchart TD
   SR["Trade requirement or standalone transport demand"] --> LS["LogisticsShipment"]
   LS --> AL["Consignment / cargo allocations"]
@@ -23,7 +23,7 @@ flowchart TD
   MV --> CL["TransportCall(s)"]
   LG --> TE["TransportEvent observations"]
   CL --> TE
-\`\`\`
+```
 
 This diagram represents associations, **not** mandatory one-to-one cardinalities, database nesting or a forced creation sequence. A movement may carry many consignments; one consignment may traverse multiple movements. Cargo-less repositioning movements are valid. Transport plans and movements remain independent aggregates.
 
