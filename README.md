@@ -1,64 +1,34 @@
-<!-- Target path: baobab-platform/engine-template/README.md (becomes <new-repo>/README.md in any repo created from this template). -->
+# Baobab TMS — Transportation Management and Logistics Execution Engine
 
-# <engine-repo-name>
+> **Current status:** Foundation-0 architecture and template configuration. **No headless TMS service, live carrier integration, active canonical capability or production certification has been demonstrated in this repository.**
 
-<!--
-  TODO before this repo's first real PR merges — then delete this comment block:
-  1. Replace the title above with the real repo name (e.g. `baobab-iam`), matching
-     the naming convention: short, hyphenated, no `-engine`/`-control-plane` suffix
-     (see baobab-platform/baobab-cp, baobab-platform/baobab-trade, baobab-platform/baobab-erp,
-     baobab-platform/baobab-pulse, baobab-platform/baobab-cms for precedent).
-  2. Replace ADR-000N below with the real ADR number recording this engine's
-     addition to the ecosystem. File it in baobab-platform/shared/docs/adr/, continuing
-     the existing sequence (see that repo's docs/adr/ for the next free number).
-  3. Fill in the "Role", "Ownership", and "Contract dependencies" sections below
-     with what's actually true for this engine — do not leave the placeholder
-     prose in place.
-  4. See TEMPLATE-USAGE.md in this repo's root for the full activation checklist
-     (CODEOWNERS, devcontainer, Foundation gates, branch protection) — do that
-     before writing application code, then delete that file too.
--->
+Baobab TMS is a reusable, **headless, self-hosted** transport-execution engine for independently entitled Baobab tenants, including Thamani and ZuriBeans. It models canonical **LogisticsShipment, Consignment, Cargo, TransportPlan, TransportRoute, TransportMovement, TransportLeg, TransportCall, Booking, Capacity, Delivery** and sourced operational events.
 
-> **Status:** scaffolded, not yet built — see ADR-000N.
+It is not a tenant-specific digital estate, an ERP, a warehouse inventory ledger, a Customs authority, a commercial seller or a provider-neutral IAM/CP replacement.
 
-## Role
+## Architectural decisions
 
-One paragraph: what this engine owns, in the ecosystem's own vocabulary — and,
-just as important, what it explicitly does *not* own (business logic that
-belongs to another engine, contracts that belong to `baobab-platform/shared`,
-infrastructure that belongs to `baobab-platform/infrastructure`). Model this on the
-"Role" section of an existing repo's README rather than writing it from
-scratch — see `baobab-platform/infrastructure`'s README for the shape.
+See the [ADR register](docs/adr/README.md) for the programme and maturity:
 
-## Ownership
+- [ADR-TMS-0001](docs/adr/ADR-TMS-0001%20%E2%80%94%20Baobab%20TMS%20Mission,%20Authority,%20Transport%20Execution%20Boundary%20and%20Platform%20Capability%20Role.md): Accepted engine mission/authority.
+- [ADR-TMS-0002](docs/adr/ADR-TMS-0002%20%E2%80%94%20Canonical%20LogisticsShipment,%20Consignment%20and%20Transport%20Execution%20Domain%20Model.md): Accepted canonical shipment/consignment domain.
+- ADR-TMS-0003 through ADR-TMS-0019: **Proposed** architecture and implementation-gate decisions; not implementation or production proof.
+- [TMS-TECH-01](docs/architecture/TMS-TECH-01%20%E2%80%94%20Headless%20Self-Hosted%20TMS%20Runtime%20and%20OSS%20Reuse%20Strategy.md): proposed same-stack runtime direction; headless Node.js 24 / TypeScript / Fastify / PostgreSQL 17; selective OSS logic reuse, no mandatory extra product stack.
 
-This repository will contain:
+## Ownership and integrations
 
-- TODO
+**TMS owns** physical transport execution and trusted transport-domain operational facts. **Trade/Medusa** owns commercial orders, fulfilment commitments and TradeShipment; **ERP/iDempiere** owns financial/accounting state; **Trade Docs** owns document versions, evidence and Customs workflows; **Regulations** owns applicable regulatory decisions; **CP** owns tenant context and capability provider/bindings; **IAM** owns authentication.
 
-It must not contain:
+Canonical cross-engine identity, event types, capability keys and wire contracts are governed by [baobab-platform/shared](https://github.com/baobab-platform/shared). Accepted Shared contract authority is not changed by a TMS document. The existing Trade shipment event producer remains Trade until a separate Shared reconciliation.
 
-- TODO
+## Self-hosted development
 
-## Contract dependencies
+The repository currently retains template `.baobab/*.example` and `.devcontainer/*.example` profiles. Application dependencies, migrations, runnable services and a production container are **not yet established**. Do not copy template YAML into a production provider-support claim.
 
-Note which `baobab-platform/shared` contracts this engine consumes or publishes
-(event schemas, API contracts, the Development Environment Contract), and at
-what pinned version/tag — e.g. `baobab-platform/shared@v1`. Do not commit to a
-contract here until it's actually confirmed; an empty scaffold doesn't need
-one yet.
+Proposed delivery increments are documented in the [ADR programme](docs/adr/README.md) with API, database, identity, provider adapter, tracking, safety/compliance and operational acceptance gates.
 
-## Local development
+## Architecture / production distinction
 
-This repository uses the shared `baobab-dev` devcontainer image. See
-`.baobab/environment.yaml` for the declared profile and required
-capabilities, and `.devcontainer/devcontainer.json` for the pinned image tag.
+**Proposed ADRs ≠ accepted decisions; accepted decisions ≠ implemented capabilities; implemented capabilities ≠ CP certification/activation; deployment ≠ proven legal or operational authority.**
 
-(Both of those are still `.example` files until this repo's language stack
-and `baobab-dev` profile are decided — see `TEMPLATE-USAGE.md`.)
-
-## Foundation status
-
-Foundation 0 (this scaffold: README, CODEOWNERS, branch protection) is
-complete. Foundation 1 (application code, real devcontainer/environment
-declaration, Foundation CI gates) has not started.
+See [SECURITY.md](SECURITY.md) for reporting; [CONTRIBUTING.md](CONTRIBUTING.md) for repository contribution process.
