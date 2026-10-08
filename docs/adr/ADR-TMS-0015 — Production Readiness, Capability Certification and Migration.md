@@ -13,7 +13,7 @@
 TMS production support requires **independently evidenced capability implementation, Shared semantic contracts, Control Plane provider certification/activation, release controls, actual operational and external carrier proof**. Being headless or self-hosted, having Accepted ADRs, or passing PR CI is not sufficient. Release eligibility must be granted **per canonical capability, operation, provider version, environment, market and transport mode**, not as a blanket "TMS ready" flag.
 
 ## 2. Certification and authority chain
-\`\`\`mermaid
+```mermaid
 flowchart TD
   A["Accepted TMS domain ADRs"] --> B["Implementation + tests"]
   B --> C["Shared capabilities/events and schema conformance"]
@@ -22,12 +22,12 @@ flowchart TD
   E --> F["CP CapabilityProvider/Engine registration"]
   F --> G["Tenant/market capability bindings and entitlements"]
   G --> H["Operational deployment + acceptance"]
-\`\`\`
+```
 
-Governance detail: Shared **catalogue** describes canonical capability semantics, not executable provider availability; §.baobab/capability-provider.yaml§ expresses implementation claims/plans, **not** certification, active support, endpoint hosts, tenant grants or runtime health. CP retains all provider bindings, activation, topology and legal-entity context. A simulated provider cannot be production permitted.
+Governance detail: Shared **catalogue** describes canonical capability semantics, not executable provider availability; `.baobab/capability-provider.yaml` expresses implementation claims/plans, **not** certification, active support, endpoint hosts, tenant grants or runtime health. CP retains all provider bindings, activation, topology and legal-entity context. A simulated provider cannot be production permitted.
 
 ## 3. Legacy shipment/event migration
-Accepted ADR-TMS-0001/0002 identify §contracts/shipment/v1§ and §com.baobab-platform.trade.shipment.*§ as **Trade-owned legacy semantics**. These must remain unchanged until a separate Shared reconciliation and approved consumer migration.
+Accepted ADR-TMS-0001/0002 identify `contracts/shipment/v1` and `com.baobab-platform.trade.shipment.*` as **Trade-owned legacy semantics**. These must remain unchanged until a separate Shared reconciliation and approved consumer migration.
 
 | Migration stage | Action | Evidence required |
 |---|---|---|

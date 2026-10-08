@@ -15,14 +15,14 @@ A LogisticsShipment can pass between producer, pickup carrier, warehouse, port/t
 ## 2. Decision
 Model **CustodyHandoff**, **CustodyEvent**, **HandlingUnitReference**, **Location/FacilityReference**, **CustodyPartyReference**, **QuantityConditionSnapshot** and **HandoffDiscrepancy** with durable TMS identity and source provenance. One handoff concerns an explicit portion of a consignment and may occur at a movement-leg/call boundary. TMS records operational custody claims and acknowledgements; it does **not** create legal transfer of title.
 
-\`\`\`mermaid
+```mermaid
 flowchart LR
   A["Supplier / pickup"] --> B["Road Carrier A"]
   B --> C["Warehouse / Port Terminal"]
   C --> D["Ocean/Air/Rail Provider"]
   D --> E["Destination Carrier"]
   E --> F["Recipient"]
-\`\`\`
+```
 
 Transitions may be unacknowledged, disputed or partial; a carrier's unilateral "handed over" status cannot silently become a recipient's verified acceptance.
 

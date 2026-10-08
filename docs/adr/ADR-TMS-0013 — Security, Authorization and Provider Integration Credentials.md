@@ -12,14 +12,14 @@
 ## 1. Decision
 Use **IAM** for authenticating staff, carriers, drivers, clients and workloads; use **CP-redeemed context** for trusted tenant/legal-entity, business relationship, provider bindings and capability entitlement. TMS owns **operation-specific domain authorisation** for shipment access, carrier assignment, dispatch, tracking ingestion, document references and sensitive location exposure. No universal provider-admin shortcut or unscoped vendor credential.
 
-\`\`\`mermaid
+```mermaid
 flowchart LR
   A["Human/workload token"] --> B["IAM verification"]
   B --> C["CP trusted caller-bound context"]
   C --> D["TMS resource/action policy"]
   D --> E["Least-privilege operation"]
   E --> F["Audited transport fact"]
-\`\`\`
+```
 
 ## 2. Domain actors and permissions
 | Actor | Example allowed operations | Explicitly denied |

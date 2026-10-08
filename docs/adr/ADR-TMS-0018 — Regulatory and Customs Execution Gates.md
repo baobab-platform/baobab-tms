@@ -15,7 +15,7 @@ TMS executes physical movement across borders and markets, but is not competent 
 ## 2. Decision
 Implement a **TransportExecutionGate** per guarded operation and scope. The gate evaluates required, current **Regulations RegulatoryDecision** and **Trade Docs CustomsCase/authority-response evidence** using authorised, pinned references. A gate result is **ALLOW / BLOCK / UNKNOWN / NOT_APPLICABLE** with decision source, version, temporal validity, applicable subject/cargo/leg, evidence references, actor/policy version and audit. TMS only applies the result to its operational transition.
 
-\`\`\`mermaid
+```mermaid
 flowchart TD
   A["Proposed crossing/loading/dispatch transition"] --> B["Resolve CP tenant, legal entity and context"]
   B --> C["Read pinned Regulations applicability and decisions"]
@@ -25,7 +25,7 @@ flowchart TD
   E -->|No| G["BLOCK with source and reason"]
   E -->|Unknown/stale| H["UNKNOWN: hold; reconcile evidence"]
   H --> C
-\`\`\`
+```
 
 An **ALLOW** means only this TMS transport-domain action is eligible; it is **not** a general trading permit, Customs release, title transfer, insurance coverage, national regulatory certification or customer promise.
 
@@ -40,7 +40,7 @@ An **ALLOW** means only this TMS transport-domain action is eligible; it is **no
 | Final release/recipient delivery | authoritative Customs status where delivery is legally conditioned | block relevant handover |
 | Historical query/tracking | original facts and contemporaneous decision reference | do not erase observations because policy later changes |
 
-Policies must be product, route, market, mode and effective-time scoped. No single global §customs_released§ flag for an entire multimodal shipment when some consignments/legs are held and others are released.
+Policies must be product, route, market, mode and effective-time scoped. No single global `customs_released` flag for an entire multimodal shipment when some consignments/legs are held and others are released.
 
 ## 4. Historical pinning and staleness
 Use Shared CrossEngineObjectReference with correct pinning to source-owned RegulatoryDecision, DocumentVersion and CustomsCase/authority outcome. Preserve decision-retrieved-at, effective period and subject match. If a decision is revoked, superseded, stale or no longer covers the revised route/cargo/parties, a pending or future guarded transition must be re-evaluated. Do not rewrite historical proof that an earlier operation was authorised under an earlier decision.

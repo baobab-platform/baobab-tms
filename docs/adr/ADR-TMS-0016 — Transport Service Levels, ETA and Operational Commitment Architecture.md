@@ -33,7 +33,7 @@ ETA updates **must not** rewrite planned windows or actual events. Replanning cr
 ## 4. SLA evaluation and escalation
 Specify threshold basis (pickup at gate, handover complete, delivered, signed acceptance), customer/carrier holidays and time zones, excluded durations, exception causes, evidence source, and clock policy. A service commitment must be linked to contract reference and effective date before a breach is treated as contractual. Use configurable severity and notices to operational actors without automatic invoice adjustment or acceptance of carrier liability.
 
-\`\`\`mermaid
+```mermaid
 flowchart TD
   A["Carrier agreement + approved plan revision"] --> B["Operational target"]
   B --> C["ETA stream / actual transport events"]
@@ -42,7 +42,7 @@ flowchart TD
   D -->|Yes| F["Operational breach with evidence"]
   F --> G["Thamani/ZuriBeans authorised notification"]
   F --> H["Trade/ERP may separately evaluate commercial remedy"]
-\`\`\`
+```
 
 ## 5. Tenant and experience controls
 Tenant-independent canonical TMS domain; per-contract/market policy determines windows and actors. Track external partner response times separately from transport SLA. Customer views must reveal forecast confidence and last update, not expose driver route/PII or confidential carrier buy rate. A subscription to tracking updates requires entitlements and revocable access.

@@ -15,7 +15,7 @@ Baobab must optimise routes, consolidate consignments and evaluate carrier/opera
 ## 2. Decision
 Define a **TransportOptimisationProblem**, **ConstraintSet**, **Scenario**, **CandidateSolution**, **FeasibilityAssessment**, **ObjectiveVector**, **SolverExecution** and **Decision/ApprovalReference**. These are transport planning aids whose solutions become a transport plan **only after explicit approval** under ADR-TMS-0003. TMS remains headless and self-hosted; no routing vendor or optimisation runtime is mandatory at Foundation-1.
 
-\`\`\`mermaid
+```mermaid
 flowchart LR
   A["Cargo/consignments + provider capacity"] --> B["Constraint builder"]
   C["Corridor, location, time windows"] --> B
@@ -26,7 +26,7 @@ flowchart LR
   G --> H["Authorised human/policy selection"]
   H --> I["TransportPlan revision"]
   I --> J["Carrier booking and dispatch"]
-\`\`\`
+```
 
 ## 3. Constraint and objective types
 | Type | Examples | Hard/soft handling |
@@ -44,7 +44,7 @@ Optimiser MUST NOT encode legal-policy reasoning itself. It consumes decisions/c
 ## 4. Algorithm portability and open source
 Start with a deterministic bounded heuristic if sufficient. Evaluate **VROOM/OSRM** only as possible routing/optimisation adapters after verifying build/language/deployment footprint, licences and maintenance; they are **not** asserted to have identical stack or mandatory approval. A solver in another language or network service would require explicit exception to TMS-TECH-01's no-new-mandatory-stack direction.
 
-Optimisation adapters exchange versioned, typed requests/responses via stable ports; native solver object IDs and status codes do not replace canonical shipment/movement identity. Provide cancellation, computational budget, timeout, rate limiting and safe fallback §UNAVAILABLE§ / §UNOPTIMISED§. No "synthetic ETA" invented as a precise real-time prediction.
+Optimisation adapters exchange versioned, typed requests/responses via stable ports; native solver object IDs and status codes do not replace canonical shipment/movement identity. Provide cancellation, computational budget, timeout, rate limiting and safe fallback `UNAVAILABLE` / `UNOPTIMISED`. No "synthetic ETA" invented as a precise real-time prediction.
 
 ## 5. Determinism and reproducibility
 Persist input snapshot and immutable refs, constraint and objective configuration, solver/heuristic version, seed, map/routing data version, currency FX source, horizon, timeout, candidate score vector and validation outcome. Some solvers are nondeterministic; explain randomness and bounded tolerance rather than guaranteeing bit-identical solutions if untrue.
