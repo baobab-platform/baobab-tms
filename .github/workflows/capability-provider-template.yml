@@ -58,7 +58,7 @@ jobs:
           ref: ${{ env.SHARED_REF }}
           path: .shared
           persist-credentials: false
-      - uses: actions/setup-python@ad3497abcd142e169a10aac37abd5175c44f33c4 # v7.0.0+6 (main, 2026-09-09)
+      - uses: actions/setup-python@06da6279cdbca41027908073e81a4544dc79c06b # v7.0.0+6 (main, 2026-09-09)
         with:
           python-version: "3.13"
       - name: Install the Shared validation runtime
