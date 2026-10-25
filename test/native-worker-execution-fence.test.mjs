@@ -57,6 +57,20 @@ test("revocation and uncertain external outcome never silently retry",async()=>{
  await assert.rejects(fence.execute(envelope,async()=>{effects++;return 200;}),NativeWorkerDenied);
  assert.equal(effects,1);
 });
+test("CP revocation while acquiring durable claim prevents any external effect",async()=>{
+ let grant=true,effects=0;
+ const ledger={
+  async claim(){grant=false;return {outcome:"CLAIMED",leaseGeneration:1};},
+  async complete(){throw Error("must never complete");},
+  async markUnknown(){return true;}
+ };
+ const verifyCurrent=async e=>grant?{
+  ...e,source:"CP_VERIFIED",decision:"ALLOW",verifiedUntil:clock()+1000,decisionId:"cp-test"
+ }:null;
+ const fence=createNativeWorkerFence({verifyCurrent,ledger,certifiedOperations:new Set(["edi-retry"]),now:clock});
+ await assert.rejects(fence.execute(envelope,async()=>{effects++;}),NativeWorkerDenied);
+ assert.equal(effects,0,"No external effect may begin after claim-time revocation");
+});
 test("malformed or missing identity, concurrency and stale generation fail closed",async()=>{
  const {fence}=setup();
  for(const changed of [{tenantId:""},{payloadDigest:"wrong"},{cpFencingGeneration:0}]){
