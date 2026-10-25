@@ -25,7 +25,9 @@ def exec_in(container, command, *, env=None, success=True):
     args.extend([container, *command])
     p = subprocess.run(args, text=True, capture_output=True, timeout=15)
     if (p.returncode == 0) != success:
-        raise AssertionError(f"Unexpected isolated native container result: {container}")
+        # Native proof emits only a bounded diagnostic message, not JWTs.
+        message = (p.stderr or p.stdout).strip()[-800:]
+        raise AssertionError(f"Unexpected isolated native container result: {container}: {message}")
     return p.stdout.strip()
 
 
