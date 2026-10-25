@@ -1,0 +1,197 @@
+# HYB-02: real pinned Open TMS Fastify/pg-boss runtime, two orgs in the
+# same native database, with a separate native database tenant B. This is a
+# development-only qualifier; it does not certify Baobab CP/IAM or carriers.
+name: TMS Native API and Worker Isolation
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/hyb-native-app-worker.yml"
+      - "scripts/hybrid/native-open-tms-proof.mts"
+      - "docs/implementation/HYB-02-native-app-worker.md"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/hyb-native-app-worker.yml"
+      - "scripts/hybrid/native-open-tms-proof.mts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native-api-worker:
+    name: Native Fastify + pg-boss two-org qualification
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    env:
+      COMPOSE_PROJECT_NAME: hybnative
+    steps:
+      - name: Checkout Baobab test authority
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Checkout pinned vendor source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: DominicFinn/open_tms
+          ref: 623adec1370f1a85a92766cd0a028f7a451dab95
+          path: .upstream/open_tms
+          persist-credentials: false
+      - name: Setup Node 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+      - name: Install immutable upstream npm graph
+        working-directory: .upstream/open_tms
+        run: |
+          npm ci --no-audit --no-fund
+          npm -w packages/shared run build
+          npm -w backend run prisma:generate
+          test "$(git rev-parse HEAD)" = "623adec1370f1a85a92766cd0a028f7a451dab95"
+      - name: Generate disposable database and app secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          db="$RUNNER_TEMP/hyb-native-db.env"
+          app="$RUNNER_TEMP/hyb-native-app.env"
+          : > "$db"
+          for name in HYB_MYSQL_A_ROOT HYB_MYSQL_B_ROOT HYB_MYSQL_A_APP HYB_MYSQL_B_APP HYB_PG_A_ROOT HYB_PG_B_ROOT HYB_PG_A_APP HYB_PG_B_APP; do
+            printf '%s=%s\n' "$name" "$(openssl rand -hex 24)" >> "$db"
+          done
+          source "$db"
+          {
+            printf 'DATABASE_URL=postgresql://nativeapp:%s@postgres_a:5432/opentms_a?schema=public\n' "$HYB_PG_A_APP"
+            printf 'JWT_SECRET=%s\n' "$(openssl rand -hex 48)"
+            printf 'HYB_NATIVE_PASSWORD=%s\n' "$(openssl rand -hex 32)"
+            printf 'CREDENTIALS_ENCRYPTION_KEY=%s\n' "$(openssl rand -hex 48)"
+            printf 'NODE_ENV=production\nDISABLE_EMBEDDED_WORKERS=true\nWORKER_MODE=integrations\n'
+            printf 'WMS_OUTBOX_RELAY=off\nPORT=3001\nCORS_ORIGINS=http://hyb-native-api:3001\n'
+          } > "$app"
+      - name: Start isolated native PostgreSQL 17 tenants
+        run: |
+          docker compose --env-file "$RUNNER_TEMP/hyb-native-db.env" \
+            -f ops/hybrid/docker-compose.data-plane.yml up -d --wait postgres_a postgres_b
+      - name: Deploy exact upstream Prisma migrations to both databases
+        shell: bash
+        run: |
+          set -euo pipefail
+          source "$RUNNER_TEMP/hyb-native-db.env"
+          source_dir="$PWD/.upstream/open_tms"
+          for tenant in a b; do
+            if [ "$tenant" = a ]; then password="$HYB_PG_A_ROOT"; else password="$HYB_PG_B_ROOT"; fi
+            url="postgresql://postgres:$password@postgres_$tenant:5432/opentms_$tenant?schema=public"
+            docker run --rm --network "hybnative_tenant_$tenant" \
+              --cap-drop ALL --security-opt no-new-privileges \
+              -v "$source_dir:/src" -w /src -e "DATABASE_URL=$url" \
+              --entrypoint node node:24-bookworm \
+              /src/node_modules/prisma/build/index.js migrate deploy --schema /src/backend/prisma/schema
+          done
+      - name: Grant native least-privileged test application role
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose --env-file "$RUNNER_TEMP/hyb-native-db.env" \
+            -f ops/hybrid/docker-compose.data-plane.yml exec -T postgres_a sh -ec '
+              psql -U postgres -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 <<SQL
+          CREATE ROLE nativeapp LOGIN PASSWORD '"'"'$TMS_APP_PASSWORD'"'"';
+          GRANT CONNECT, CREATE ON DATABASE "$POSTGRES_DB" TO nativeapp;
+          GRANT USAGE, CREATE ON SCHEMA public TO nativeapp;
+          GRANT ALL ON ALL TABLES IN SCHEMA public TO nativeapp;
+          GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO nativeapp;
+          SQL
+            '
+      - name: Run native fixture code from pinned vendor repo
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_dir="$PWD/.upstream/open_tms"
+          cp scripts/hybrid/native-open-tms-proof.mts "$source_dir/hyb-native-proof.mts"
+          docker run --rm --network hybnative_tenant_a \
+            --cap-drop ALL --security-opt no-new-privileges \
+            --env-file "$RUNNER_TEMP/hyb-native-app.env" \
+            -v "$source_dir:/src" -w /src --entrypoint /src/node_modules/.bin/tsx \
+            node:24-bookworm /src/hyb-native-proof.mts seed
+      - name: Start actual native Fastify and standalone integration worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_dir="$PWD/.upstream/open_tms"
+          docker run -d --name hyb-native-api --network hybnative_tenant_a \
+            --cap-drop ALL --security-opt no-new-privileges \
+            --env-file "$RUNNER_TEMP/hyb-native-app.env" \
+            -v "$source_dir:/src" -w /src \
+            --entrypoint /src/node_modules/.bin/tsx node:24-bookworm \
+            /src/backend/src/index.ts
+          docker run -d --name hyb-native-worker --network hybnative_tenant_a \
+            --cap-drop ALL --security-opt no-new-privileges \
+            --env-file "$RUNNER_TEMP/hyb-native-app.env" \
+            -v "$source_dir:/src" -w /src \
+            --entrypoint /src/node_modules/.bin/tsx node:24-bookworm \
+            /src/backend/src/worker.ts
+          healthy=0
+          for attempt in $(seq 1 45); do
+            if docker exec hyb-native-api node -e 'fetch("http://localhost:3001/health").then(x=>process.exit(x.ok?0:1)).catch(()=>process.exit(1))' >/dev/null 2>&1; then
+              healthy=1
+              break
+            fi
+            sleep 2
+          done
+          echo "Native API health readiness: $healthy"
+          worker=0
+          for attempt in $(seq 1 45); do
+            if docker logs hyb-native-worker 2>&1 | grep -q 'Waiting for jobs'; then
+              worker=1
+              break
+            fi
+            sleep 2
+          done
+          echo "Native worker subscription readiness: $worker"
+          if [ "$healthy" != 1 ] || [ "$worker" != 1 ]; then
+            for service in hyb-native-api hyb-native-worker; do
+              docker inspect --format 'Native container {{.Name}} {{.State.Status}} exit={{.State.ExitCode}}' "$service" || true
+              # Only bounded diagnostic lines from synthetic source; redact DSNs.
+              docker logs "$service" 2>&1 | grep -Ei 'error|failed|unable|cannot|missing|started|running|queue|worker' \
+                | sed -E 's#postgres(ql)?://[^ ]+#<redacted-dsn>#g' | tail -n 24 || true
+            done
+            exit 1
+          fi
+      - name: Exercise native issued JWTs and cross-org HTTP negative paths
+        shell: bash
+        run: |
+          docker run --rm --network hybnative_tenant_a \
+            --cap-drop ALL --security-opt no-new-privileges \
+            --env-file "$RUNNER_TEMP/hyb-native-app.env" \
+            -v "$PWD/.upstream/open_tms:/src" -w /src \
+            --entrypoint /src/node_modules/.bin/tsx node:24-bookworm \
+            /src/hyb-native-proof.mts http
+      - name: Publish native pg-boss work; prove worker respects org of record
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_dir="$PWD/.upstream/open_tms"
+          jobs=$(docker run --rm --network hybnative_tenant_a \
+            --cap-drop ALL --security-opt no-new-privileges \
+            --env-file "$RUNNER_TEMP/hyb-native-app.env" \
+            -v "$source_dir:/src" -w /src \
+            --entrypoint /src/node_modules/.bin/tsx node:24-bookworm \
+            /src/hyb-native-proof.mts publish | tail -n 1)
+          test -n "$jobs"
+          docker run --rm --network hybnative_tenant_a \
+            --cap-drop ALL --security-opt no-new-privileges \
+            --env-file "$RUNNER_TEMP/hyb-native-app.env" \
+            -v "$source_dir:/src" -w /src \
+            --entrypoint /src/node_modules/.bin/tsx node:24-bookworm \
+            /src/hyb-native-proof.mts worker-verify "$jobs"
+      - name: Witness synthetic resource destruction
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          docker rm -f hyb-native-api hyb-native-worker >/dev/null 2>&1
+          file="$RUNNER_TEMP/hyb-native-db.env"
+          if [ -f "$file" ]; then
+            docker compose --env-file "$file" -f ops/hybrid/docker-compose.data-plane.yml down -v --remove-orphans
+          fi
+          rm -f "$RUNNER_TEMP/hyb-native-db.env" "$RUNNER_TEMP/hyb-native-app.env"
