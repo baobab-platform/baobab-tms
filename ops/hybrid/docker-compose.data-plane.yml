@@ -1,0 +1,71 @@
+# HYB-02 synthetic data planes: NOT Fleetbase or Open TMS apps.
+# Dedicated per-tenant DB/runtime networks and volumes; no host ports.
+services:
+  mysql_a:
+    image: mysql:8.0.44
+    environment:
+      MYSQL_ROOT_PASSWORD: ${HYB_MYSQL_A_ROOT:?required}
+      MYSQL_DATABASE: fleetbase_a
+      MYSQL_APP_PASSWORD: ${HYB_MYSQL_A_APP:?required}
+    networks: [tenant_a]
+    volumes: [mysql_a_data:/var/lib/mysql]
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=$$MYSQL_ROOT_PASSWORD mysqladmin ping -h 127.0.0.1 -u root"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  mysql_b:
+    image: mysql:8.0.44
+    environment:
+      MYSQL_ROOT_PASSWORD: ${HYB_MYSQL_B_ROOT:?required}
+      MYSQL_DATABASE: fleetbase_b
+      MYSQL_APP_PASSWORD: ${HYB_MYSQL_B_APP:?required}
+    networks: [tenant_b]
+    volumes: [mysql_b_data:/var/lib/mysql]
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=$$MYSQL_ROOT_PASSWORD mysqladmin ping -h 127.0.0.1 -u root"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  postgres_a:
+    image: postgres:17.11-alpine3.23
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${HYB_PG_A_ROOT:?required}
+      POSTGRES_DB: opentms_a
+      TMS_APP_PASSWORD: ${HYB_PG_A_APP:?required}
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+    networks: [tenant_a]
+    volumes: [postgres_a_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d opentms_a"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  postgres_b:
+    image: postgres:17.11-alpine3.23
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${HYB_PG_B_ROOT:?required}
+      POSTGRES_DB: opentms_b
+      TMS_APP_PASSWORD: ${HYB_PG_B_APP:?required}
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+    networks: [tenant_b]
+    volumes: [postgres_b_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d opentms_b"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+networks:
+  tenant_a:
+    internal: true
+  tenant_b:
+    internal: true
+
+volumes:
+  mysql_a_data:
+  mysql_b_data:
+  postgres_a_data:
+  postgres_b_data:

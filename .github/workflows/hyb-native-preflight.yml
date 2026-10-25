@@ -1,0 +1,99 @@
+# HYB-01/02: source admission and synthetic database isolation, NOT provider certification.
+name: TMS Hybrid Native Preflight
+on:
+  pull_request:
+    paths:
+      - "config/hybrid/**"
+      - "scripts/hybrid/**"
+      - "ops/hybrid/**"
+      - "docs/implementation/HYB-0*"
+      - "test/hyb01.test.mjs"
+      - ".github/workflows/hyb-native-preflight.yml"
+  push:
+    branches: [main]
+    paths:
+      - "config/hybrid/**"
+      - "scripts/hybrid/**"
+      - "ops/hybrid/**"
+      - "test/hyb01.test.mjs"
+      - ".github/workflows/hyb-native-preflight.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  upstream-census:
+    name: HYB-01 pinned upstream census
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout TMS
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Node 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+      - name: Validate source pins and negative cases
+        run: |
+          node --test test/hyb01.test.mjs
+          node scripts/hybrid/verify-upstreams.mjs
+      - name: Checkout Fleetbase at source SHA
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: fleetbase/fleetbase
+          ref: 9c5e164e5476b6038d24653f6e557b43aa27959c
+          path: .upstream/fleetbase
+          persist-credentials: false
+      - name: Checkout Fleet-Ops at source SHA
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: fleetbase/fleetops
+          ref: 33032e53ebee5e4a514970ee2379c12348c77c54
+          path: .upstream/fleetops
+          persist-credentials: false
+      - name: Checkout Open TMS at source SHA
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: DominicFinn/open_tms
+          ref: 623adec1370f1a85a92766cd0a028f7a451dab95
+          path: .upstream/open_tms
+          persist-credentials: false
+      - name: Validate immutable source identity and native risk assumptions
+        run: node scripts/hybrid/verify-upstreams.mjs --upstream-root .upstream
+
+  isolated-data-plane:
+    name: HYB-02 MySQL and PG17 two-tenant proof
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout TMS
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Create ephemeral isolated credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          file="$RUNNER_TEMP/hyb02-ci.env"
+          : > "$file"
+          for name in HYB_MYSQL_A_ROOT HYB_MYSQL_B_ROOT HYB_MYSQL_A_APP HYB_MYSQL_B_APP HYB_PG_A_ROOT HYB_PG_B_ROOT HYB_PG_A_APP HYB_PG_B_APP; do
+            printf '%s=%s\n' "$name" "$(openssl rand -hex 24)" >> "$file"
+          done
+          echo "HYB02_ENV_FILE=$file" >> "$GITHUB_ENV"
+      - name: Launch MySQL and PostgreSQL native isolated data planes
+        run: |
+          docker compose --env-file "$HYB02_ENV_FILE" -f ops/hybrid/docker-compose.data-plane.yml config --quiet
+          docker compose --env-file "$HYB02_ENV_FILE" -f ops/hybrid/docker-compose.data-plane.yml up --detach --wait
+      - name: Execute tenant negative tests and synthetic backup and restore
+        run: python3 scripts/hybrid/verify-db-isolation.py "$HYB02_ENV_FILE"
+      - name: Destroy ephemeral native data planes
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          if [ -n "${HYB02_ENV_FILE:-}" ] && [ -f "$HYB02_ENV_FILE" ]; then
+            docker compose --env-file "$HYB02_ENV_FILE" -f ops/hybrid/docker-compose.data-plane.yml down --volumes --remove-orphans
+            rm -f "$HYB02_ENV_FILE"
+          fi
