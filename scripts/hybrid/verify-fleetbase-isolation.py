@@ -64,8 +64,10 @@ for tenant in "ab":
     passcode = values[f"HYB_REDIS_{tenant.upper()}_PASS"]
     assert exec_in(redis, ["redis-cli", "--no-auth-warning", "PING"],
                    env={"REDISCLI_AUTH": passcode}) == "PONG"
-    exec_in(redis, ["redis-cli", "--no-auth-warning", "PING"],
-            env={"REDISCLI_AUTH": "incorrect"}, success=False)
+    bad = exec_in(redis, ["redis-cli", "--no-auth-warning", "PING"],
+                  env={"REDISCLI_AUTH": "incorrect"})
+    if bad == "PONG" or not ("WRONGPASS" in bad or "NOAUTH" in bad):
+        raise AssertionError("Redis accepted incorrect credential or did not reject correctly")
     # No host port may be published for socket or database or Redis.
     for name in [socket, redis, f"hybfleet-mysql_{tenant}-1"]:
         inspect = subprocess.run(
