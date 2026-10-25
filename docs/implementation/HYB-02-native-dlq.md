@@ -1,0 +1,9 @@
+# HYB-02 — Native pg-boss DLQ and unknown-outcome replay acceptance
+
+**Status:** engineering test proposed; full HYB-02 gate HELD until connected results and other worker families.
+
+This test uses pinned `DominicFinn/open_tms@623adec1370f1a85a92766cd0a028f7a451dab95` real documentGenerationWorker and pg-boss 12.x against two separate PostgreSQL 17 native data planes. It deliberately commits one synthetic side effect *before* throwing from the upstream worker, thereby representing the dangerous crash-after-effect/before-ack case. The actual pg-boss job must move to the designated dead-letter queue without an unbounded retry; a copy of its original payload and canonical operation digest is then taken into a dedicated **reconciliation** queue. Two distinct replay jobs for that operation must never invoke the native worker again or create a second effect. Native PostgreSQL uniqueness proves only one committed synthetic effect. Evidence contains no carrier documents, customer information or actual CP/IAM tokens.
+
+The test does **not** certify `PgBossQueueAdapter.retryFailedJobs` for real provider commitments: that upstream helper republishes DLQ items without independently checking CP current authority, provider state, canonical operation idempotency or uncertain external outcomes. The correct policy is to hold unknown outcomes for independently witnessed carrier/issuer readback, not replay native execution blindly. Production must wire the first-party CP-current worker execution fence and real durable canonical TMS ledger to *all* native job subscribers before anything is admitted.
+
+The remaining scheduled jobs (tracking, ETA, cutoff, anonymisation, SLA, financial cron, WMS outbox, archive, document generation and others) require operation-specific A/B negative isolation, replay, revocation, crash recovery and independent evidence. A successful synthetic DLQ test is not certification for any untested worker. HYB-01 Fleetbase remains deferred.

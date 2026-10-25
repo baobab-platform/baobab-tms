@@ -1,0 +1,93 @@
+# Real pinned Open TMS worker crashes AFTER a synthetic DB side effect and
+# enters actual pg-boss DLQ. Separate recovery lane MUST NOT re-run native work.
+name: TMS Native PgBoss DLQ Recovery
+on:
+  pull_request:
+    paths:
+      - "scripts/hybrid/native-pgboss-dlq-proof.mts"
+      - ".github/workflows/hyb-native-pgboss-dlq.yml"
+      - "docs/implementation/HYB-02-native-dlq.md"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/hybrid/native-pgboss-dlq-proof.mts"
+      - ".github/workflows/hyb-native-pgboss-dlq.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-dlq:
+    name: HYB-02 real pg-boss crash after effect and fenced replay A/B
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      COMPOSE_PROJECT_NAME: hybdlq
+    steps:
+      - name: Checkout Baobab synthetic proof
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Checkout exact Open TMS upstream
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: DominicFinn/open_tms
+          ref: 623adec1370f1a85a92766cd0a028f7a451dab95
+          path: .upstream/open_tms
+          persist-credentials: false
+      - name: Node 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+      - name: Prepare pinned vendor client/worker imports
+        working-directory: .upstream/open_tms
+        run: |
+          npm ci --no-audit --no-fund
+          npm -w packages/shared run build
+          npm -w backend run prisma:generate
+          test "$(git rev-parse HEAD)" = "623adec1370f1a85a92766cd0a028f7a451dab95"
+      - name: Create private ephemeral credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          file="$RUNNER_TEMP/hyb-dlq.env"
+          : > "$file"
+          for name in HYB_MYSQL_A_ROOT HYB_MYSQL_B_ROOT HYB_MYSQL_A_APP HYB_MYSQL_B_APP HYB_PG_A_ROOT HYB_PG_B_ROOT HYB_PG_A_APP HYB_PG_B_APP; do
+            printf '%s=%s\n' "$name" "$(openssl rand -hex 24)" >> "$file"
+          done
+          echo "HYB_DLQ_DB_ENV=$file" >> "$GITHUB_ENV"
+      - name: Start A and B isolated PostgreSQL 17 native databases
+        run: docker compose --env-file "$HYB_DLQ_DB_ENV" -f ops/hybrid/docker-compose.data-plane.yml up -d --wait postgres_a postgres_b
+      - name: Execute native document worker crash, dead letter and reconciliation in A and B
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_dir="$PWD/.upstream/open_tms"
+          cp scripts/hybrid/native-pgboss-dlq-proof.mts "$source_dir/hyb-pgboss-dlq-proof.mts"
+          source "$HYB_DLQ_DB_ENV"
+          for tenant in a b; do
+            if [ "$tenant" = a ]; then
+              pg_password="$HYB_PG_A_ROOT"
+              label=A
+            else
+              pg_password="$HYB_PG_B_ROOT"
+              label=B
+            fi
+            docker run --rm --network "hybdlq_tenant_$tenant" \
+              --cap-drop ALL --security-opt no-new-privileges \
+              -e "DATABASE_URL=postgresql://postgres:$pg_password@postgres_$tenant:5432/opentms_$tenant?schema=public" \
+              -e "HYB_REPLAY_TENANT=$label" \
+              -v "$source_dir:/src" -w /src \
+              --entrypoint /src/node_modules/.bin/tsx node:24-bookworm \
+              /src/hyb-pgboss-dlq-proof.mts
+          done
+      - name: Destroy ephemeral queues, volumes and credentials
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          file="$RUNNER_TEMP/hyb-dlq.env"
+          if [ -f "$file" ]; then
+            docker compose --env-file "$file" -f ops/hybrid/docker-compose.data-plane.yml down -v --remove-orphans
+            rm -f "$file"
+          fi
