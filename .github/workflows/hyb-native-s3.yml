@@ -82,7 +82,7 @@ jobs:
             -e MC_CONFIG_DIR=/tmp/.mc \
             -v "$PWD/ops/hybrid/s3-policy:/policies:ro" \
             --entrypoint /bin/sh \
-            docker.io/clickhouse/minio-mc:RELEASE.2025-04-16T18-13-26Z -ec '
+            docker.io/clickhouse/minio-mc@sha256:aead63c77f9db9107f1696fb08ecb0faeda23729cde94b0f663edf4fe09728e3 -ec '
               ready=0
               for attempt in $(seq 1 18); do
                 if mc alias set s3 http://hyb-s3-minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null 2>&1 &&
@@ -107,7 +107,7 @@ jobs:
               mc admin policy attach s3 hyb-tenant-b --user "$HYB_S3_B_USER"
             '
           docker image inspect --format '{{range .RepoDigests}}{{.}}{{end}}' \
-            docker.io/clickhouse/minio-mc:RELEASE.2025-04-16T18-13-26Z
+            docker.io/clickhouse/minio-mc@sha256:aead63c77f9db9107f1696fb08ecb0faeda23729cde94b0f663edf4fe09728e3
       - name: Test real vendor S3 adapter, restricted IAM and signed URL denial
         shell: bash
         run: |
