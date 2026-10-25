@@ -69,6 +69,19 @@ jobs:
             printf 'NODE_ENV=production\nDISABLE_EMBEDDED_WORKERS=true\nWORKER_MODE=integrations\n'
             printf 'WMS_OUTBOX_RELAY=off\nPORT=3001\nCORS_ORIGINS=http://hyb-native-api:3001\n'
           } > "$app"
+          app_b="$RUNNER_TEMP/hyb-native-app-b.env"
+          {
+            printf 'DATABASE_URL=postgresql://nativeapp:%s@postgres_b:5432/opentms_b?schema=public\n' "$HYB_PG_B_APP"
+            printf 'JWT_SECRET=%s\n' "$(openssl rand -hex 48)"
+            printf 'HYB_NATIVE_PASSWORD=%s\n' "$(openssl rand -hex 32)"
+            printf 'CREDENTIALS_ENCRYPTION_KEY=%s\n' "$(openssl rand -hex 48)"
+            printf 'NODE_ENV=production\nDISABLE_EMBEDDED_WORKERS=true\nWORKER_MODE=integrations\n'
+            printf 'WMS_OUTBOX_RELAY=off\nPORT=3001\nCORS_ORIGINS=http://hyb-native-api-b:3001\n'
+            printf 'HYB_NATIVE_ORIGIN=http://hyb-native-api-b:3001\n'
+          } > "$app_b"
+          key_a=$(grep '^JWT_SECRET=' "$app" | cut -d= -f2)
+          key_b=$(grep '^JWT_SECRET=' "$app_b" | cut -d= -f2)
+          test "$key_a" != "$key_b"
       - name: Start isolated native PostgreSQL 17 tenants
         run: |
           docker compose --env-file "$RUNNER_TEMP/hyb-native-db.env" \
@@ -92,16 +105,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          docker compose --env-file "$RUNNER_TEMP/hyb-native-db.env" \
-            -f ops/hybrid/docker-compose.data-plane.yml exec -T postgres_a sh -ec '
-              psql -U postgres -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 <<SQL
+          for tenant in a b; do
+            docker compose --env-file "$RUNNER_TEMP/hyb-native-db.env" \
+              -f ops/hybrid/docker-compose.data-plane.yml exec -T "postgres_$tenant" sh -ec '
+                psql -U postgres -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 <<SQL
           CREATE ROLE nativeapp LOGIN PASSWORD '"'"'$TMS_APP_PASSWORD'"'"';
           GRANT CONNECT, CREATE ON DATABASE "$POSTGRES_DB" TO nativeapp;
           GRANT USAGE, CREATE ON SCHEMA public TO nativeapp;
           GRANT ALL ON ALL TABLES IN SCHEMA public TO nativeapp;
           GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO nativeapp;
           SQL
-            '
+              '
+          done
       - name: Run native fixture code from pinned vendor repo
         shell: bash
         run: |
@@ -189,9 +204,9 @@ jobs:
         shell: bash
         run: |
           set +e
-          docker rm -f hyb-native-api hyb-native-worker >/dev/null 2>&1
+          docker rm -f hyb-native-api hyb-native-worker hyb-native-api-b hyb-native-worker-b >/dev/null 2>&1
           file="$RUNNER_TEMP/hyb-native-db.env"
           if [ -f "$file" ]; then
             docker compose --env-file "$file" -f ops/hybrid/docker-compose.data-plane.yml down -v --remove-orphans
           fi
-          rm -f "$RUNNER_TEMP/hyb-native-db.env" "$RUNNER_TEMP/hyb-native-app.env"
+          rm -f "$RUNNER_TEMP/hyb-native-db.env" "$RUNNER_TEMP/hyb-native-app.env" "$RUNNER_TEMP/hyb-native-app-b.env"
