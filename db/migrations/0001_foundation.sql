@@ -134,7 +134,6 @@ CREATE TABLE IF NOT EXISTS tms.native_execution_binding (
     readiness = 'READY' AND
     verified_until IS NOT NULL AND health_expires_at IS NOT NULL AND
     native_provider_release_digest ~ '^sha256:[a-f0-9]{64}
-    native_provider_release_digest IS NOT NULL AND
     native_credential_secret_ref IS NOT NULL AND
     cp_capability_binding_revision IS NOT NULL AND policy_digest IS NOT NULL
   ))
