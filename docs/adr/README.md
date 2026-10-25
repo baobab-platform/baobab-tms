@@ -1,14 +1,15 @@
 # Baobab TMS — Architecture Decision Register
 
 **Repository:** `baobab-platform/baobab-tms`  
-**Register updated:** 2026-10-08  
+**Register updated:** 2026-10-25  
 **Maturity:** Foundation-0 architecture; **no executable TMS capability, certified provider, live carrier integration or production approval** is established by these documents.
 
 ## Architecture authority and status
 
-- **ADR-TMS-0001 and ADR-TMS-0002 are Accepted** foundational authority.
+- **ADR-TMS-0001, ADR-TMS-0002, ADR-TMS-0020 and ADR-TMS-0021 are Accepted** authoritative architecture.
 - **ADR-TMS-0003 through ADR-TMS-0019 are Proposed**, pending explicit architecture review. Their existence in `main`, if merged, does not make them Accepted.
 - ADR-TMS-0003..0015 follow the predeclared programme in ADR-TMS-0001 §63. **ADR-TMS-0016..0019 are new proposed extensions**, not silently retroactive charter decisions.
+- **ADR-TMS-0020/0021 (Accepted, 2026-10-25)** authorise hybrid native provider adoption (Fleetbase Fleet-Ops + assessed Open TMS), Fleetbase MySQL compatibility exception, CP-led provisioning, native isolation and lifecycle governance. They **supersede conflicting technology prohibitions in Proposed TMS-TECH-01 only in part**; they do not certify a running provider or accept Proposed 0003–0019.
 - [TMS-TECH-01](../architecture/TMS-TECH-01%20%E2%80%94%20Headless%20Self-Hosted%20TMS%20Runtime%20and%20OSS%20Reuse%20Strategy.md) is a separate technology document, merged as PR #2; its document status remains **Proposed** unless formally accepted.
 - [Shared](https://github.com/baobab-platform/shared) owns canonical contracts and events; [Control Plane](https://github.com/baobab-platform/baobab-cp) owns engine/provider binding, entitlement and certification state; [IAM](https://github.com/baobab-platform/baobab-iam) authenticates identities.
 - Existing `contracts/shipment/v1` and `trade.shipment` events remain Trade-owned until separately approved Shared/consumer migration. No `logistics.*` event or capability activation is implied by this ADR package.
@@ -37,11 +38,14 @@
 | ADR-TMS-0018 | **Proposed** | [ADR-TMS-0018 — Regulatory and Customs Execution Gates](ADR-TMS-0018%20%E2%80%94%20Regulatory%20and%20Customs%20Execution%20Gates.md) |
 | ADR-TMS-0019 | **Proposed** | [ADR-TMS-0019 — Transport Optimisation, Simulation and Decision Support Architecture](ADR-TMS-0019%20%E2%80%94%20Transport%20Optimisation,%20Simulation%20and%20Decision%20Support%20Architecture.md) |
 
+| ADR-TMS-0020 | **Accepted** | [ADR-TMS-0020 — Hybrid Transport Execution Provider Adoption and Runtime Architecture](ADR-TMS-0020%20%E2%80%94%20Hybrid%20Transport%20Execution%20Provider%20Adoption%20and%20Runtime%20Architecture.md) |
+| ADR-TMS-0021 | **Accepted** | [ADR-TMS-0021 — Hybrid Provider Isolation, Capability Allocation and Lifecycle Governance](ADR-TMS-0021%20%E2%80%94%20Hybrid%20Provider%20Isolation,%20Capability%20Allocation%20and%20Lifecycle%20Governance.md) |
+
 ## Implementation dependency groups
 
 | Stage | ADRs | Demonstrable output |
 |---|---|---|
-| 0. Foundational authority and stack | Accepted 0001/0002, TMS-TECH-01; proposed 0010/0012/0013 | Canonical identity, tenant/context, persistence and secure headless runtime proof |
+| 0. Foundational authority and stack | Accepted 0001/0002/0020/0021; partially superseded Proposed TMS-TECH-01; proposed 0010/0012/0013 | Canonical identity, tenant/context, persistence and secure headless runtime proof |
 | 1. Execution model | 0003/0004/0005 | Reproducible plans, consignment allocation, carrier booking, resource capacity |
 | 2. Integration | 0011/0009/0018 | Authenticated commands, durable messages, provider ports and regulatory execution gates |
 | 3. Visibility and delivery | 0007/0008/0016/0017 | Source-provenance tracking, POD refs, ETA/SLA and custody handoff |
@@ -49,6 +53,10 @@
 | 5. Acceptance | 0014/0015 | Recovery drill, migration reconciliation and per-capability CP/EA-09 evidence |
 
 **Sequencing:** these groups are dependency guidance, not a mandate to write all code at once. Build narrow vertical slices with tests and explicit contract/authority reviews. Security, context, transactional history and blocked-transition enforcement must precede operational external commands.
+
+## Accepted hybrid execution gates (architecture only)
+
+ADR-TMS-0020/0021 define HYB-00 through HYB-08: governance; upstream/AGPL licence review; native MySQL and PostgreSQL 17 compatibility; independently observed CP provisioning; IAM/current-context checks; Shared-approved events and at-least-once brokers; local/freight/mixed transport; headless tracking; provider certification, resilience and teardown. Proposed canonical com.baobab.delivery.* examples SHALL NOT be emitted: accepted Shared grammar is com.baobab-platform.<context>.<aggregate>.<fact>.v<N> until separately migrated. Existing Trade producers are retained.
 
 ## First executable vertical slice
 
