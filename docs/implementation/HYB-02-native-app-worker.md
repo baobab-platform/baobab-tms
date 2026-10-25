@@ -34,3 +34,9 @@ No external real carriers, regulatory authorities, CP tenants, production IAM or
 | Fleetbase native runtime/licensing choice (HYB-01) | **Deliberately deferred as requested** |
 
 Failing the native tests is a **real blocker**. A green run narrows risk but **cannot** be promoted as the full HYB-02 gate or proof of operational carrier execution.
+
+## HYB-02 dual native deployment increment (PR after #10)
+
+A second native Fastify/pg-boss pair is now launched on a **separate internal Docker network, separate PostgreSQL 17 native database, separate application database principal, and separate signing and application secrets**. The same authentic upstream Prisma/AuthService/worker negative and positive tests must pass in B, concurrently with the already-live A runtime. Explicit A-to-B and B-to-A native HTTP connection attempts must fail; there are no published application or database host ports. Tenant A and B may intentionally contain the same synthetic UUIDs, making accidental shared native data plane or route resolution observable through network/config evidence.
+
+This is stronger multi-instance negative evidence than only separating two databases. It still does not certify fleet telematics sockets, multiple background job types, S3/MinIO bucket credentials, outbound EDI, arbitrary query/export surfaces, actual issuer trust, CP binding or independently witnessed production disposal. Those HYB-02 acceptance cases remain HELD pending direct native tests and governance review. HYB-01 Fleetbase runtime/licensing remains **deferred** on Platform Owner instruction.
