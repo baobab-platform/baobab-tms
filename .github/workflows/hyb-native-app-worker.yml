@@ -137,7 +137,7 @@ jobs:
             fi
             sleep 2
           done
-          test "$healthy" = 1
+          echo "Native API health readiness: $healthy"
           worker=0
           for attempt in $(seq 1 45); do
             if docker logs hyb-native-worker 2>&1 | grep -q 'Waiting for jobs'; then
@@ -146,7 +146,16 @@ jobs:
             fi
             sleep 2
           done
-          test "$worker" = 1
+          echo "Native worker subscription readiness: $worker"
+          if [ "$healthy" != 1 ] || [ "$worker" != 1 ]; then
+            for service in hyb-native-api hyb-native-worker; do
+              docker inspect --format 'Native container {{.Name}} {{.State.Status}} exit={{.State.ExitCode}}' "$service" || true
+              # Only bounded diagnostic lines from synthetic source; redact DSNs.
+              docker logs "$service" 2>&1 | grep -Ei 'error|failed|unable|cannot|missing|started|running|queue|worker' \
+                | sed -E 's#postgres(ql)?://[^ ]+#<redacted-dsn>#g' | tail -n 24 || true
+            done
+            exit 1
+          fi
       - name: Exercise native issued JWTs and cross-org HTTP negative paths
         shell: bash
         run: |
