@@ -1,0 +1,90 @@
+# HYB-02 pinned Open TMS native Prisma compatibility, NOT app certification.
+name: TMS Open TMS PG17 Native Migration Proof
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/hyb-open-tms-pg17.yml"
+      - "scripts/hybrid/verify-open-tms-pg17.py"
+      - "docs/implementation/HYB-02-open-tms-pg17.md"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/hyb-open-tms-pg17.yml"
+      - "scripts/hybrid/verify-open-tms-pg17.py"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-postgresql-migration:
+    name: HYB-02 pinned Open TMS native Prisma PG17
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      COMPOSE_PROJECT_NAME: hybpg17
+    steps:
+      - name: Checkout TMS
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Checkout immutable Open TMS source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: DominicFinn/open_tms
+          ref: 623adec1370f1a85a92766cd0a028f7a451dab95
+          path: .upstream/open_tms
+          persist-credentials: false
+      - name: Node 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+      - name: Install locked upstream npm dependencies
+        working-directory: .upstream/open_tms
+        env:
+          CI: "true"
+        run: npm ci --no-audit --no-fund
+      - name: Validate pinned native multi-file Prisma schema
+        working-directory: .upstream/open_tms
+        run: |
+          npm -w backend run prisma:generate
+          node node_modules/prisma/build/index.js validate --schema backend/prisma/schema
+      - name: Create ephemeral isolated tenant credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          file="$RUNNER_TEMP/hyb-pg17.env"
+          : > "$file"
+          for name in HYB_MYSQL_A_ROOT HYB_MYSQL_B_ROOT HYB_MYSQL_A_APP HYB_MYSQL_B_APP HYB_PG_A_ROOT HYB_PG_B_ROOT HYB_PG_A_APP HYB_PG_B_APP; do
+            printf '%s=%s\n' "$name" "$(openssl rand -hex 24)" >> "$file"
+          done
+          echo "HYB02_ENV_FILE=$file" >> "$GITHUB_ENV"
+      - name: Start native PostgreSQL 17 tenant A and B data planes
+        run: |
+          docker compose --env-file "$HYB02_ENV_FILE" -f ops/hybrid/docker-compose.data-plane.yml up --detach --wait postgres_a postgres_b
+      - name: Deploy pinned upstream migrations to each native isolated database
+        shell: bash
+        run: |
+          set -euo pipefail
+          source "$HYB02_ENV_FILE"
+          source_dir="$PWD/.upstream/open_tms"
+          for tenant in a b; do
+            if [ "$tenant" = a ]; then db_password="$HYB_PG_A_ROOT"; else db_password="$HYB_PG_B_ROOT"; fi
+            url="postgresql://postgres:$db_password@postgres_$tenant:5432/opentms_$tenant?schema=public"
+            docker run --rm --network "hybpg17_tenant_$tenant" \
+              --cap-drop ALL --security-opt no-new-privileges \
+              -v "$source_dir:/src:ro" -w /src -e "DATABASE_URL=$url" \
+              --entrypoint node node:24-bookworm-slim \
+              /src/node_modules/prisma/build/index.js migrate deploy --schema /src/backend/prisma/schema
+          done
+      - name: Verify native schema constraints and tenant negative path
+        run: python3 scripts/hybrid/verify-open-tms-pg17.py "$HYB02_ENV_FILE"
+      - name: Destroy temporary native databases and credentials
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          file="$RUNNER_TEMP/hyb-pg17.env"
+          if [ -f "$file" ]; then
+            docker compose --env-file "$file" -f ops/hybrid/docker-compose.data-plane.yml down --volumes --remove-orphans
+            rm -f "$file"
+          fi
