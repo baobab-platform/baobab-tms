@@ -72,8 +72,10 @@ await forbidden(() => aWrongBucket.delete(duplicate));
 await forbidden(() => bWrongBucket.delete(duplicate));
 
 // Listing is a separate permission; read/write denial is not sufficient.
-const s3A = new S3Client(config("hyb-tenant-a",...credsA));
-const s3B = new S3Client(config("hyb-tenant-b",...credsB));
+const s3A = new S3Client({endpoint,region,forcePathStyle:true,
+  credentials:{accessKeyId:credsA[0],secretAccessKey:credsA[1]}});
+const s3B = new S3Client({endpoint,region,forcePathStyle:true,
+  credentials:{accessKeyId:credsB[0],secretAccessKey:credsB[1]}});
 await s3A.send(new ListObjectsV2Command({Bucket:"hyb-tenant-a",MaxKeys:10}));
 await s3B.send(new ListObjectsV2Command({Bucket:"hyb-tenant-b",MaxKeys:10}));
 await forbidden(() => s3A.send(new ListObjectsV2Command({Bucket:"hyb-tenant-b"})));
