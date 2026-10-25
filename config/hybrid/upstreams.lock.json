@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "assessedAt": "2026-10-25",
+  "authority": ["ADR-TMS-0001", "ADR-TMS-0002", "ADR-TMS-0020", "ADR-TMS-0021"],
+  "releaseStatus": "UNQUALIFIED",
+  "upstreams": [
+    {
+      "key": "fleetbase-core",
+      "repository": "fleetbase/fleetbase",
+      "commit": "9c5e164e5476b6038d24653f6e557b43aa27959c",
+      "license": "AGPL-3.0",
+      "path": "fleetbase",
+      "evidencePaths": ["docker-compose.yml", "LICENSE.md", "api/.env.example"],
+      "nativeDatabase": "MYSQL_8_COMPATIBLE",
+      "nodeRuntime": false,
+      "implementationSupport": "SOURCE_CENSUS_ONLY"
+    },
+    {
+      "key": "fleetops-extension",
+      "repository": "fleetbase/fleetops",
+      "commit": "33032e53ebee5e4a514970ee2379c12348c77c54",
+      "license": "AGPL-3.0-or-later",
+      "path": "fleetops",
+      "evidencePaths": ["composer.json", "README.md"],
+      "nativeDatabase": "FLEETBASE_MYSQL",
+      "nodeRuntime": false,
+      "implementationSupport": "SOURCE_CENSUS_ONLY"
+    },
+    {
+      "key": "open-tms",
+      "repository": "DominicFinn/open_tms",
+      "commit": "623adec1370f1a85a92766cd0a028f7a451dab95",
+      "license": "MIT",
+      "path": "open_tms",
+      "evidencePaths": ["docker-compose.yml", "package.json", "backend/package.json", "backend/Dockerfile", "docs/SELF_HOSTING.md", "docs/MULTI_TENANCY_REMEDIATION_PLAN.md"],
+      "nativeDatabase": "POSTGRESQL_16_UPSTREAM_PG17_UNQUALIFIED",
+      "nodeRuntime": true,
+      "implementationSupport": "SOURCE_CENSUS_ONLY"
+    }
+  ]
+}
