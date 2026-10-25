@@ -1,0 +1,160 @@
+# Fleetbase HYB-01 SUPPORTED STACK engineering qualification; no vendor licensing
+# approval, no Fleet-Ops feature activation, and no fabricated PHP migration.
+name: TMS Fleetbase HYB-01 Native Preflight
+on:
+  pull_request:
+    paths:
+      - "scripts/hybrid/qualify-fleetbase-source.mjs"
+      - "test/hyb01-fleetbase-source.test.mjs"
+      - "scripts/hybrid/verify-fleetbase-isolation.py"
+      - ".github/workflows/hyb-fleetbase-native.yml"
+      - "docs/implementation/HYB-01-fleetbase-runtime.md"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/hybrid/qualify-fleetbase-source.mjs"
+      - "test/hyb01-fleetbase-source.test.mjs"
+      - "scripts/hybrid/verify-fleetbase-isolation.py"
+      - ".github/workflows/hyb-fleetbase-native.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  source-and-php:
+    name: HYB-01 immutable Composer/Laravel/FleetOps and patched PHP source preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout Baobab
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Checkout pinned Fleetbase core
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: fleetbase/fleetbase
+          ref: 9c5e164e5476b6038d24653f6e557b43aa27959c
+          path: .upstream/fleetbase
+          persist-credentials: false
+      - name: Checkout pinned Fleet-Ops extension
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: fleetbase/fleetops
+          ref: 33032e53ebee5e4a514970ee2379c12348c77c54
+          path: .upstream/fleetops
+          persist-credentials: false
+      - name: Node 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+      - name: Validate pinned native dependency and license evidence
+        run: |
+          node --test test/hyb01-fleetbase-source.test.mjs
+          node scripts/hybrid/qualify-fleetbase-source.mjs .upstream \
+            "$RUNNER_TEMP/hyb01-fleetbase-source.json"
+      - name: Check exact supported upstream PHP syntax without executing vendor migrations
+        shell: bash
+        run: |
+          set -euo pipefail
+          # This is native PHP 8.2 parser acceptance only. Composer package
+          # installation and Fleet-Ops migrations are a separate HELD gate.
+          docker run --rm --network none --read-only \
+            -v "$PWD/.upstream/fleetbase/api:/core:ro" \
+            -v "$PWD/.upstream/fleetops/server:/fleetops:ro" \
+            --entrypoint sh php:8.2.35-cli-bookworm -ec '
+              php -r "if (version_compare(PHP_VERSION, \"8.2.35\", \"<\") || PHP_MAJOR_VERSION != 8 || PHP_MINOR_VERSION != 2) exit(42);"
+              php -l /core/artisan >/dev/null
+              count=0
+              for file in /core/app/Providers/*.php /fleetops/migrations/*.php; do
+                [ -f "$file" ] || continue
+                php -l "$file" >/dev/null || exit 1
+                count=$((count+1))
+              done
+              [ "$count" -ge 40 ]
+              echo "Fleetbase native PHP 8.2.35 syntax accepted ($count files); Composer install/migrations HELD"
+            '
+      - name: Record exact PHP fixture image digest
+        run: docker image inspect php:8.2.35-cli-bookworm --format '{{join .RepoDigests ", "}}'
+  isolated-socket-redis:
+    name: HYB-01 real Fleetbase socket and Redis two-deployment isolation
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      COMPOSE_PROJECT_NAME: hybfleet
+    steps:
+      - name: Checkout Baobab
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Checkout pinned Fleetbase core
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: fleetbase/fleetbase
+          ref: 9c5e164e5476b6038d24653f6e557b43aa27959c
+          path: .upstream/fleetbase
+          persist-credentials: false
+      - name: Node 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+      - name: Native SocketCluster locked dependencies and vendor tests
+        working-directory: .upstream/fleetbase/socket
+        run: |
+          npm ci --no-audit --no-fund
+          npm test
+      - name: Create ephemeral native A/B database, Redis and SocketCluster secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          file="$RUNNER_TEMP/hyb01-fleet.env"
+          : > "$file"
+          for name in HYB_MYSQL_A_ROOT HYB_MYSQL_B_ROOT HYB_MYSQL_A_APP HYB_MYSQL_B_APP HYB_PG_A_ROOT HYB_PG_B_ROOT HYB_PG_A_APP HYB_PG_B_APP HYB_REDIS_A_PASS HYB_REDIS_B_PASS HYB_SOCKET_A_KEY HYB_SOCKET_B_KEY; do
+            printf '%s=%s\n' "$name" "$(openssl rand -hex 32)" >> "$file"
+          done
+          echo "HYB01_FLEET_ENV=$file" >> "$GITHUB_ENV"
+      - name: Launch native two-tenant MySQL 8 and isolated networks
+        run: |
+          docker compose --env-file "$HYB01_FLEET_ENV" -f ops/hybrid/docker-compose.data-plane.yml \
+            up -d --wait mysql_a mysql_b
+      - name: Start native Redis cache and source SocketCluster per tenant
+        shell: bash
+        run: |
+          set -euo pipefail
+          source "$HYB01_FLEET_ENV"
+          base="$PWD/.upstream/fleetbase/socket"
+          for tenant in a b; do
+            if [ "$tenant" = a ]; then
+              pass="$HYB_REDIS_A_PASS"; key="$HYB_SOCKET_A_KEY"
+            else
+              pass="$HYB_REDIS_B_PASS"; key="$HYB_SOCKET_B_KEY"
+            fi
+            docker run -d --name "hybfleet-redis-$tenant" \
+              --network "hybfleet_tenant_$tenant" --network-alias cache \
+              --cap-drop ALL --security-opt no-new-privileges \
+              -e "HYB_REDIS_SECRET=$pass" --entrypoint sh redis:7.4.5-alpine \
+              -ec 'exec redis-server --appendonly no --requirepass "$HYB_REDIS_SECRET"'
+            docker run -d --name "hybfleet-socket-$tenant" \
+              --network "hybfleet_tenant_$tenant" \
+              --cap-drop ALL --security-opt no-new-privileges \
+              -e SOCKETCLUSTER_AUTH_ENABLED=true -e SOCKETCLUSTER_AUTH_MODE=enforce \
+              -e "SOCKETCLUSTER_AUTH_KEY=$key" \
+              -e "SOCKETCLUSTER_OPTIONS={\"origins\":\"https://synthetic-$tenant.example.invalid\"}" \
+              -e SOCKETCLUSTER_CONFIG_POLL_SECONDS=0 \
+              -e SOCKETCLUSTER_AUTHORIZE_URL=http://127.0.0.1:59999/v1/deny \
+              -v "$base:/app:ro" -w /app \
+              --entrypoint node node:24-bookworm server.js
+          done
+      - name: Prove real A/B SocketCluster, Redis, MySQL and denied cross-network access
+        run: python3 scripts/hybrid/verify-fleetbase-isolation.py "$HYB01_FLEET_ENV"
+      - name: Destroy all private native runtime resources and credentials
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          docker rm -f hybfleet-socket-a hybfleet-socket-b hybfleet-redis-a hybfleet-redis-b >/dev/null 2>&1
+          if [ -f "$RUNNER_TEMP/hyb01-fleet.env" ]; then
+            docker compose --env-file "$RUNNER_TEMP/hyb01-fleet.env" \
+              -f ops/hybrid/docker-compose.data-plane.yml down -v --remove-orphans
+            rm -f "$RUNNER_TEMP/hyb01-fleet.env"
+          fi
