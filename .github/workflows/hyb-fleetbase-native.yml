@@ -141,7 +141,9 @@ jobs:
               --cap-drop ALL --security-opt no-new-privileges \
               -e SOCKETCLUSTER_AUTH_ENABLED=true -e SOCKETCLUSTER_AUTH_MODE=enforce \
               -e "SOCKETCLUSTER_AUTH_KEY=$key" \
-              -e "SOCKETCLUSTER_OPTIONS={\"origins\":\"https://synthetic-$tenant.example.invalid\"}" \
+              # No host ports; isolate JWT/channel semantics from origin-handshake mechanics.
+              # Production MUST configure its exact approved origin, not this CI-only wildcard.
+              -e 'SOCKETCLUSTER_OPTIONS={"origins":"*:*"}' \
               -e SOCKETCLUSTER_CONFIG_POLL_SECONDS=0 \
               -e SOCKETCLUSTER_AUTHORIZE_URL=http://127.0.0.1:59999/v1/deny \
               -v "$base:/app:ro" -w /app \
