@@ -136,13 +136,12 @@ jobs:
               --cap-drop ALL --security-opt no-new-privileges \
               -e "HYB_REDIS_SECRET=$pass" --entrypoint sh redis:7.4.5-alpine \
               -ec 'exec redis-server --appendonly no --requirepass "$HYB_REDIS_SECRET"'
+            # CI-only wildcard origin inside a private unexposed network; never production.
             docker run -d --name "hybfleet-socket-$tenant" \
               --network "hybfleet_tenant_$tenant" \
               --cap-drop ALL --security-opt no-new-privileges \
               -e SOCKETCLUSTER_AUTH_ENABLED=true -e SOCKETCLUSTER_AUTH_MODE=enforce \
               -e "SOCKETCLUSTER_AUTH_KEY=$key" \
-              # No host ports; isolate JWT/channel semantics from origin-handshake mechanics.
-              # Production MUST configure its exact approved origin, not this CI-only wildcard.
               -e 'SOCKETCLUSTER_OPTIONS={"origins":"*:*"}' \
               -e SOCKETCLUSTER_CONFIG_POLL_SECONDS=0 \
               -e SOCKETCLUSTER_AUTHORIZE_URL=http://127.0.0.1:59999/v1/deny \
