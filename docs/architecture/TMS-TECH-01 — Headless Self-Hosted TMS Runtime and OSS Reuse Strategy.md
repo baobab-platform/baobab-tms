@@ -1,12 +1,16 @@
 # TMS-TECH-01 — Headless, Self-Hosted Transportation Runtime and OSS Reuse Strategy
 
-**Status:** Proposed — technology decision for review; NOT implemented, certified, activated or production-ready  
+**Status:** Proposed — **SUPERSEDED IN PART** by Accepted ADR-TMS-0020/0021 (2026-10-25); not implemented, certified, activated or production-ready  
 **Date:** 2026-10-08  
 **Repository:** baobab-platform/baobab-tms  
 **Decision scope:** engine-local technology, build/adopt boundary, operability, open-source selection and implementation gates  
 **Depends on:** Accepted ADR-TMS-0001, ADR-TMS-0002; Shared ADR-SHARED-017/018/019/021; Control Plane and IAM authority  
 **Consumers:** Thamani, ZuriBeans, any future entitled tenant  
 **Implementation baseline:** repository currently contains accepted ADRs and Foundation-0 template material, not an executable TMS
+
+## 0. Governing amendment (2026-10-25)
+
+**Read this before following any runtime selection instruction below.** Accepted [ADR-TMS-0020](../adr/ADR-TMS-0020%20%E2%80%94%20Hybrid%20Transport%20Execution%20Provider%20Adoption%20and%20Runtime%20Architecture.md) and [ADR-TMS-0021](../adr/ADR-TMS-0021%20%E2%80%94%20Hybrid%20Provider%20Isolation,%20Capability%20Allocation%20and%20Lifecycle%20Governance.md) supersede this **Proposed** document wherever it forbids adopting the full self-hosted Fleetbase Fleet-Ops and assessed Open TMS provider runtimes, PHP/Laravel, MySQL, Redis, vendor workers/sockets or distinct native database instances. PostgreSQL 17 remains the **canonical TMS preferred database**, not a mandate imposed upon Fleetbase. Fleetbase MySQL 8-compatible native persistence is accepted as an explicit exception; an unproven Fleetbase PG17 port is not required. Open TMS targets PostgreSQL 17 after concrete compatibility tests. The Node 24/TypeScript/Fastify preference can still apply to Baobab-owned TMS canonical kernel and adapters where suitable. The upstream licensing/security/tenancy and runtime certification gates remain mandatory. This note preserves historical proposal text below for traceability; conflicting statements below are **not normative**.
 
 ## 1. Decision proposed
 
