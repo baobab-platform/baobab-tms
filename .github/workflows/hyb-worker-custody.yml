@@ -1,0 +1,78 @@
+name: TMS Canonical Worker Custody PG17
+on:
+  pull_request:
+    paths:
+      - "db/migrations/**"
+      - "src/security/native-worker-execution-fence.mjs"
+      - "test/native-worker-execution-fence.test.mjs"
+      - "scripts/hybrid/verify-canonical-ledger.py"
+      - ".github/workflows/hyb-worker-custody.yml"
+  push:
+    branches: [main]
+    paths:
+      - "db/migrations/**"
+      - "src/security/native-worker-execution-fence.mjs"
+      - "test/native-worker-execution-fence.test.mjs"
+      - "scripts/hybrid/verify-canonical-ledger.py"
+      - ".github/workflows/hyb-worker-custody.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  worker-admission:
+    name: HYB-02 worker replay, revocation and DLQ admission unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout TMS
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Node 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+      - name: Replay and unknown outcome fences
+        run: node --test test/native-worker-execution-fence.test.mjs
+  postgres17-ledger:
+    name: HYB-02 actual PG17 canonical SQL migration and no-allow RLS
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout TMS
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Create disposable database passwords
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          file="$RUNNER_TEMP/hyb-canonical-db.env"
+          : > "$file"
+          for name in HYB_MYSQL_A_ROOT HYB_MYSQL_B_ROOT HYB_MYSQL_A_APP HYB_MYSQL_B_APP HYB_PG_A_ROOT HYB_PG_B_ROOT HYB_PG_A_APP HYB_PG_B_APP; do
+            printf '%s=%s\n' "$name" "$(openssl rand -hex 24)" >> "$file"
+          done
+          echo "HYB_CANONICAL_DB_ENV=$file" >> "$GITHUB_ENV"
+      - name: Launch disposable PostgreSQL 17
+        run: docker compose --env-file "$HYB_CANONICAL_DB_ENV" -f ops/hybrid/docker-compose.data-plane.yml up --detach --wait postgres_a
+      - name: Apply actual foundation and worker-custody migrations
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose --env-file "$HYB_CANONICAL_DB_ENV" -f ops/hybrid/docker-compose.data-plane.yml exec -T postgres_a \
+            psql -U postgres -d opentms_a -v ON_ERROR_STOP=1 < db/migrations/0001_foundation.sql
+          docker compose --env-file "$HYB_CANONICAL_DB_ENV" -f ops/hybrid/docker-compose.data-plane.yml exec -T postgres_a \
+            psql -U postgres -d opentms_a -v ON_ERROR_STOP=1 < db/migrations/0002_native_worker_execution.sql
+      - name: Verify real PostgreSQL unique idempotency and deny-all RLS
+        run: python3 scripts/hybrid/verify-canonical-ledger.py "$HYB_CANONICAL_DB_ENV"
+      - name: Destroy isolated test database and temporary credentials
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          file="$RUNNER_TEMP/hyb-canonical-db.env"
+          if [ -f "$file" ]; then
+            docker compose --env-file "$file" -f ops/hybrid/docker-compose.data-plane.yml down -v --remove-orphans
+            rm -f "$file"
+          fi
