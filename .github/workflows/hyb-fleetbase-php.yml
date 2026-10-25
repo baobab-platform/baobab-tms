@@ -83,6 +83,13 @@ jobs:
             done
             test "$ready" = 1
           done
+          # The pinned Storefront extension uses the dedicated Laravel
+          # connection "$DB_DATABASE_storefront". Keep this DB per tenant.
+          # Do not let one synthetic tenant share another's extension schema.
+          docker exec -e "MYSQL_PWD=$MYSQL_PASS_A" hyb01-php-mysql-a \
+            mysql -u root -e "CREATE DATABASE fleetbase_a_storefront CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+          docker exec -e "MYSQL_PWD=$MYSQL_PASS_B" hyb01-php-mysql-b \
+            mysql -u root -e "CREATE DATABASE fleetbase_b_storefront CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
       - name: Install exact locked native Laravel and Fleet-Ops packages
         shell: bash
         working-directory: .upstream/fleetbase/api
