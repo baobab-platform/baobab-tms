@@ -16,13 +16,17 @@ The upstream `docker-compose.yml` is insecure as a deployable Baobab baseline: `
 - Real tenant A/B MySQL 8 and Redis instances on completely separate internal-only Docker networks. Verify real Redis credential challenges, own socket health and bidirectional cross-tenant socket/Redis/MySQL networking denial. Dispose of all volumes/secrets after the run.
 - No official Fleetbase PHP image, third-party Docker image, unverified Composer package, source copy or external IP is admitted for protected use by the test.
 
+## Verified Composer artifact alignment
+
+The first connected immutable-source run inspected the actual pinned `api/composer.lock`: **237 locked packages**, `fleetbase/fleetops-api` **0.6.74** resolves to source commit `33032e53ebee5e4a514970ee2379c12348c77c54`, which **exactly matches** the reviewed Fleet-Ops checkout; `fleetbase/core-api` **1.6.73** resolves to `494d8859c2eaa65d13a95c450c0b44d92262d20e`. All 237 installed-package source references are 40-character revisions. This closes the narrow **Fleet-Ops source pin parity** check, but does not attest verified package archives, Composer installation, transitive licence/CVE clearance or versioned image provenance.
+
 ## Licensing disposition — platform owner and legal gate
 
 Both pinned repositories are AGPL-3.0-or-later. Fleetbase advertises a commercial licence for proprietary SaaS/white-label and keeping modifications private (https://fleetbase.io/licensing). There is **NO executed Baobab commercial agreement or legal approval** in this repo. AGPL-3.0 network/interoperability requirements for modified network deployments require legal assessment; do not infer from headless API boundaries alone that proprietary modifications are exempt. Record selected approved licence route, effective legal entities/territories, Fleet-Ops/core coverage, extension packages, linking/network source obligations and compliance evidence. A source census is not legal advice.
 
 ## Remaining mandatory HYB-01 qualification before any release
 
-1. Reconcile the exact installed `fleetbase/fleetops-api` artifact from `api/composer.lock` with the separately reviewed Git source, all transitive licences and integrity data. Obtain authenticated vendor package availability without leaking secrets as Docker `--build-arg`; use BuildKit secrets or proper package credentials.
+1. **Source parity evidenced** for locked Fleet-Ops, but obtain installed Composer artifact content integrity, transitive licence/SBOM/CVE clearance and authenticated vendor package availability. Obtain authenticated vendor package availability without leaking secrets as Docker `--build-arg`; use BuildKit secrets or proper package credentials.
 2. Build the actual supported **patched** Fleetbase API container reproducibly, run secure Composer install, Laravel package discovery and Fleet-Ops migrations against a real dedicated MySQL 8 database with least-privileged runtime role, and collect version/digest/SBOM/CVE and source attestation. The vendor install-smoke test says private package credentials may be required. Never declare success when skipped for absent credentials.
 3. Qualify native HTTP dispatch/assignment, current permissions, queue, scheduler, retry/DLQ, socket subscription/tenant channel, published events, credential revocation, storage and restore/teardown on two isolated deployments. CP governs tenant, legal entity, market, capability and native binding; do not infer a CP Tenant from Fleetbase Company.
 4. Conduct independent licencing/security review and record approved AGPL or executed commercial route. Enforce CP/IAM binding and negative cross-tenant proof at native execution; no live Fleetbase capability grant before acceptance.
