@@ -32,7 +32,7 @@
       "commit": "623adec1370f1a85a92766cd0a028f7a451dab95",
       "license": "MIT",
       "path": "open_tms",
-      "evidencePaths": ["docker-compose.yml", "package.json", "backend/package.json", "backend/Dockerfile", "docs/SELF_HOSTING.md", "docs/MULTI_TENANCY_REMEDIATION_PLAN.md"],
+      "evidencePaths": ["docker-compose.yml", "package.json", "backend/package.json", "backend/Dockerfile", "LICENCE.md", "docs/SELF_HOSTING.md", "docs/MULTI_TENANCY_REMEDIATION_PLAN.md"],
       "nativeDatabase": "POSTGRESQL_16_UPSTREAM_PG17_UNQUALIFIED",
       "nodeRuntime": true,
       "implementationSupport": "SOURCE_CENSUS_ONLY"
