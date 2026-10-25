@@ -13,7 +13,11 @@ See the [ADR register](docs/adr/README.md) for the programme and maturity:
 - [ADR-TMS-0001](docs/adr/ADR-TMS-0001%20%E2%80%94%20Baobab%20TMS%20Mission,%20Authority,%20Transport%20Execution%20Boundary%20and%20Platform%20Capability%20Role.md): Accepted engine mission/authority.
 - [ADR-TMS-0002](docs/adr/ADR-TMS-0002%20%E2%80%94%20Canonical%20LogisticsShipment,%20Consignment%20and%20Transport%20Execution%20Domain%20Model.md): Accepted canonical shipment/consignment domain.
 - ADR-TMS-0003 through ADR-TMS-0019: **Proposed** architecture and implementation-gate decisions; not implementation or production proof.
-- [TMS-TECH-01](docs/architecture/TMS-TECH-01%20%E2%80%94%20Headless%20Self-Hosted%20TMS%20Runtime%20and%20OSS%20Reuse%20Strategy.md): proposed same-stack runtime direction; headless Node.js 24 / TypeScript / Fastify / PostgreSQL 17; selective OSS logic reuse, no mandatory extra product stack.
+- [ADR-TMS-0020](docs/adr/ADR-TMS-0020%20%E2%80%94%20Hybrid%20Transport%20Execution%20Provider%20Adoption%20and%20Runtime%20Architecture.md): **Accepted** hybrid Fleetbase Fleet-Ops + Open TMS adoption, native MySQL exception and provider-neutral TMS domain.
+- [ADR-TMS-0021](docs/adr/ADR-TMS-0021%20%E2%80%94%20Hybrid%20Provider%20Isolation,%20Capability%20Allocation%20and%20Lifecycle%20Governance.md): **Accepted** CP-led provisioning, native isolation, identity, lifecycle, reconciliation and certification controls.
+- [TMS-TECH-01](docs/architecture/TMS-TECH-01%20%E2%80%94%20Headless%20Self-Hosted%20TMS%20Runtime%20and%20OSS%20Reuse%20Strategy.md): **Proposed and superseded in part by ADR-TMS-0020/0021**; retains optional first-party Node.js 24 / TypeScript / Fastify / PostgreSQL 17 kernel direction, while the adopted Fleetbase native runtime may use MySQL 8-compatible persistence.
+
+**Decision versus delivery:** accepting ADR-TMS-0020/0021 does **not** demonstrate a running Fleetbase or Open TMS provider, independent tenancy proof, Shared wire event activation, commercial/AGPL licence disposition, staging or production certification. All remain implementation gates.
 
 ## Ownership and integrations
 
