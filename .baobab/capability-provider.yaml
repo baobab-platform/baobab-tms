@@ -1,0 +1,22 @@
+# ADR-SHARED-017: planned intent only; no registered/resolvable provider.
+# This file must never be confused with a CP provider activation or certification.
+schema:
+  name: baobab-capability-provider-declaration
+  version: "1.0"
+engine:
+  engine_id: baobab-tms
+planned_capabilities:
+  - proposed_key: logistics.shipment.manage
+    proposal_status: CANDIDATE
+    description: Proposed canonical transport execution admission and management; Shared catalogue registration pending.
+    provenance:
+      authority:
+        repository: baobab-tms
+        decision: ADR-TMS-0001
+  - proposed_key: logistics.tracking.read
+    proposal_status: CANDIDATE
+    description: Proposed privacy-scoped transport tracking projection; not a live or certified tracking service.
+    provenance:
+      authority:
+        repository: baobab-tms
+        decision: ADR-TMS-0007

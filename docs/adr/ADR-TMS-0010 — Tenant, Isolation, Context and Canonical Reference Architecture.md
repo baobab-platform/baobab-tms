@@ -1,12 +1,13 @@
 # ADR-TMS-0010 — Tenant, Isolation, Context and Canonical Reference Architecture
 
-**Status:** Proposed — architectural review; not yet accepted or implemented  
+**Status:** Accepted — as amended by ADR-TMS-0020/0021; not implementation or certification
 **Date:** 2026-10-08  
+**Ratified:** 2026-10-25 — Platform Owner; see [governance reconciliation](ADR-GOVERNANCE-2026-10-25.md)  
 **Repository:** baobab-platform/baobab-tms  
 **Depends on:** Accepted ADR-TMS-0001 and ADR-TMS-0002; TMS-TECH-01 technology constraints; applicable Shared contracts  
 **Authority:** Shared owns canonical contracts/events, CP owns context/provider/activation, IAM authenticates; TMS owns transport execution  
 
-> This decision describes required future behaviour and testing, not deployed software, provider certification, live tracking coverage, qualified carrier relationships or market permission.
+> This Accepted decision defines future requirements, not proof of deployed or certified capability.
 
 
 ## 1. Decision

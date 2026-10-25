@@ -1,12 +1,13 @@
 # ADR-TMS-0012 — Persistence, Temporal History and Projection Architecture
 
-**Status:** Proposed — pending architectural acceptance; not implementation or production certification  
+**Status:** Accepted — as amended by ADR-TMS-0020/0021; not implementation or certification
 **Date:** 2026-10-08  
+**Ratified:** 2026-10-25 — Platform Owner; see [governance reconciliation](ADR-GOVERNANCE-2026-10-25.md)  
 **Repository:** baobab-platform/baobab-tms  
 **Depends on:** Accepted ADR-TMS-0001 and ADR-TMS-0002; merged TMS-TECH-01 documentation; Shared and CP/IAM governance  
 **Scope:** headless, self-hosted, provider-neutral transport execution for independently entitled Baobab tenants  
 
-> This ADR is a design proposal. Names of illustrative operations, capabilities and events are **not** automatically registered Shared contracts, certified provider support, legal authorisations or deployed runtime claims.
+> This Accepted decision governs target semantics; illustrative capability and event keys remain unregistered until Shared accepts them.
 
 
 ## 1. Decision

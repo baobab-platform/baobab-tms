@@ -1,0 +1,50 @@
+# ADR-TMS-0001/0002/0020/0021: executable Foundation-1 smoke.
+# Self-contained Node 24 only. Does not confer CP/EA-09 provider certification.
+name: TMS Foundation
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "test/**"
+      - "package.json"
+      - "db/**"
+      - ".baobab/capability-provider.yaml"
+      - ".github/workflows/tms-foundation.yml"
+  pull_request:
+    paths:
+      - "src/**"
+      - "test/**"
+      - "package.json"
+      - "db/**"
+      - ".baobab/capability-provider.yaml"
+      - ".github/workflows/tms-foundation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  foundation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Node 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+      - name: Verify syntax and adversarial foundation tests
+        run: npm run check
+      - name: Guard against false provider activation
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -Eq '^[[:space:]]*providers:' .baobab/capability-provider.yaml; then
+            echo "A real provider declaration requires independent EA-09 proof" >&2
+            exit 1
+          fi
+          grep -q 'proposal_status: CANDIDATE' .baobab/capability-provider.yaml
+          grep -q 'no live provider' docs/implementation/FND-01.md

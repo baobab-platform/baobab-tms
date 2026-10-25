@@ -1,22 +1,16 @@
-<!-- Target path: baobab-platform/engine-template/contracts/README.md (becomes <new-repo>/contracts/README.md in any repo created from this template). -->
+# Baobab TMS Contract Consumption
 
-# Contracts
+The only authoritative canonical capability/event/identity definitions live in
+[baobab-platform/shared](https://github.com/baobab-platform/shared).
 
-This directory is a placeholder for how this engine consumes or publishes
-`baobab-platform/shared` contracts (event/AsyncAPI schemas, API contracts, the
-Development Environment Contract this repo already declares under
-`.baobab/`) — not a contract definition of its own. Canonical contract
-schemas live in `baobab-platform/shared`, pinned by tag (e.g. `baobab-platform/shared@v1`),
-not copied or forked into this repo.
+At FND-01 no new logistics capability is registered in Shared's catalogue,
+and the engine has no active event producer. The existing Trade-owned
+\`contracts/shipment/v1\` and \`trade.shipment\` event types are not copied,
+redefined or taken over. The local
+\`.baobab/capability-provider.yaml\` lists CANDIDATE planned intent ONLY,
+as permitted by ADR-SHARED-017. No \`providers\` are declared.
 
-Fill this in once this engine actually consumes or publishes a contract:
-
-- Which `baobab-platform/shared` contract(s), at which pinned version.
-- Whether this engine is a producer, a consumer, or both, for each.
-- Where in this repo's own code that contract is enforced (generated types,
-  schema validation, etc.).
-
-Delete this file (or leave it empty with a one-line "none yet") if this
-engine genuinely doesn't touch any shared contract beyond the Development
-Environment Contract — don't leave placeholder content that looks real but
-isn't.
+Before any public API, consumer or producer is activated, pin the exact Shared
+contract revision, validate generated bindings/schema, add compatibility tests,
+obtain a new Shared decision where necessary, and separately qualify the
+runtime with Control Plane and IAM. ADR acceptance alone is not a wire contract.

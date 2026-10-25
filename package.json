@@ -1,0 +1,13 @@
+{
+  "name": "@baobab-platform/baobab-tms",
+  "version": "0.1.0-foundation.1",
+  "description": "ADR-governed Baobab TMS foundation; no qualified booking or dispatch operations",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24 <25" },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "check": "node --check src/domain/shipment.mjs && node --check src/domain/provider-selection.mjs && node --check src/adapters/native-providers.mjs && node --check src/http/development-server.mjs && npm test",
+    "dev": "node src/http/development-server.mjs"
+  }
+}

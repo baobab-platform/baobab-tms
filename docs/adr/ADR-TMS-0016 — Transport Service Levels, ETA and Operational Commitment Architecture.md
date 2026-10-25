@@ -1,10 +1,11 @@
 # ADR-TMS-0016 — Transport Service Levels, ETA and Operational Commitment Architecture
 
-**Status:** Proposed — extension to charter programme; awaiting architecture acceptance  
+**Status:** Accepted — as amended by ADR-TMS-0020/0021; not implementation or certification
 **Date:** 2026-10-08  
+**Ratified:** 2026-10-25 — Platform Owner; see [governance reconciliation](ADR-GOVERNANCE-2026-10-25.md)  
 **Repository:** baobab-platform/baobab-tms  
 **Authority:** Accepted ADR-TMS-0001/0002, current Shared and CP/IAM governance; approved TMS implementation contracts only when separately registered  
-**Programme note:** ADR-TMS-0016 through ADR-TMS-0019 extend the initial ADR-0001 programme (which originally ended at 0015); numbering and scope are proposals, not retroactively accepted charter decisions.  
+**Programme note:** ADR-TMS-0016 through ADR-TMS-0019 explicitly ratified as Accepted extensions on 2026-10-25; hybrid runtime/authority conflicts are amended by ADR-TMS-0020/0021 and Shared.
 
 > This document does not activate runtime, canonical capabilities, provider support, legal authority, production deployment or certified transport outcomes.
 
