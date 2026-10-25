@@ -83,15 +83,19 @@ jobs:
             --entrypoint /bin/sh \
             docker.io/clickhouse/minio-mc:RELEASE.2025-04-16T18-13-26Z -ec '
               ready=0
-              for attempt in $(seq 1 40); do
+              for attempt in $(seq 1 18); do
                 if mc alias set s3 http://hyb-s3-minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null 2>&1 &&
-                   mc ready s3 >/dev/null 2>&1; then
+                   mc ls s3 >/dev/null 2>&1; then
                   ready=1
                   break
                 fi
                 sleep 2
               done
-              test "$ready" = 1
+              if [ "$ready" != 1 ]; then
+                echo "Authenticated native MinIO probe did not become ready"
+                mc ls s3 2>&1 | tail -n 5 || true
+                exit 1
+              fi
               mc mb s3/hyb-tenant-a
               mc mb s3/hyb-tenant-b
               mc admin user add s3 "$HYB_S3_A_USER" "$HYB_S3_A_PASS"
@@ -116,6 +120,12 @@ jobs:
             -v "$source_dir:/src" -w /src \
             --entrypoint /src/node_modules/.bin/tsx node:24-bookworm \
             /src/hyb-native-s3-proof.mts
+      - name: Redacted MinIO server startup diagnostics on test failure
+        if: failure()
+        shell: bash
+        run: |
+          docker inspect --format 'MinIO container {{.State.Status}} exit={{.State.ExitCode}}' hyb-s3-minio || true
+          docker logs hyb-s3-minio 2>&1 | tail -n 25 || true
       - name: Independently destroy object store, IAM and ephemeral credentials
         if: always()
         shell: bash
