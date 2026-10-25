@@ -1,0 +1,88 @@
+# Native Open TMS source quarantine is opt-in for a disposable reviewed build,
+# never a production-ready CP/IAM integration.
+name: TMS Native Quarantine Overlay
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/hyb-native-overlay.yml"
+      - "ops/hybrid/native-overlays/**"
+      - "scripts/hybrid/apply-open-tms-quarantine.mjs"
+      - "scripts/hybrid/native-quarantine-smoke.mts"
+      - "src/adapters/cp-native-binary-fence.mjs"
+      - "src/security/trusted-native-outbound.mjs"
+      - "docs/implementation/HYB-02-cp-enforcement.md"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/hyb-native-overlay.yml"
+      - "ops/hybrid/native-overlays/**"
+      - "scripts/hybrid/apply-open-tms-quarantine.mjs"
+      - "scripts/hybrid/native-quarantine-smoke.mts"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  quarantine:
+    name: HYB-02 native source guarded composition and no-bypass
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout TMS security overlay
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Checkout exact upstream Open TMS
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: DominicFinn/open_tms
+          ref: 623adec1370f1a85a92766cd0a028f7a451dab95
+          path: .upstream/open_tms
+          persist-credentials: false
+      - name: Node 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+      - name: Validate source inventory before patch
+        run: node scripts/hybrid/audit-native-surfaces.mjs .upstream/open_tms
+      - name: Generate guarded native source from exact upstream revision
+        run: |
+          node scripts/hybrid/apply-open-tms-quarantine.mjs .upstream/open_tms "$PWD"
+          cp scripts/hybrid/native-quarantine-smoke.mts .upstream/open_tms/hyb-native-quarantine-smoke.mts
+      - name: Install pinned vendor dependency graph
+        working-directory: .upstream/open_tms
+        run: |
+          npm ci --no-audit --no-fund
+          npm -w packages/shared run build
+      - name: Parse patched native API, worker, storage and external delivery modules
+        working-directory: .upstream/open_tms
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import ts from "typescript";
+          import {readFileSync} from "node:fs";
+          const files=[
+            "backend/src/di/modules/core.ts",
+            "backend/src/worker.ts",
+            "backend/src/services/OutboundEdiDeliveryService.ts",
+            "backend/src/services/webhooks/CustomerWebhookDeliveryService.ts",
+            "backend/src/baobab/native-binary-quarantine.ts",
+            "backend/src/baobab/native-outbound-quarantine.ts"
+          ];
+          for(const p of files){
+            const s=readFileSync(p,"utf8");
+            const parsed=ts.transpileModule(s,{
+              fileName:p,reportDiagnostics:true,
+              compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}
+            });
+            const errors=(parsed.diagnostics??[]).filter(x=>x.category===ts.DiagnosticCategory.Error);
+            if(errors.length) throw Error("Invalid patched native syntax: "+p);
+          }
+          for(const p of files.slice(2,4)){
+            const s=readFileSync(p,"utf8");
+            if(/\bfetch\s*\(/.test(s))throw Error("Raw native outbound fetch remains: "+p);
+          }
+          console.log("Pinned native API/worker/egress patch syntactically valid");
+          NODE
+      - name: Real pinned vendor module import and fail-closed I/O
+        working-directory: .upstream/open_tms
+        run: node_modules/.bin/tsx ./hyb-native-quarantine-smoke.mts

@@ -1,0 +1,66 @@
+# HYB-02 fail-closed first-party guards and audited native patch inventory.
+# Tests DO NOT constitute CP-connected runtime certification.
+name: TMS Native Enforcement Preflight
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/hyb-native-enforcement.yml"
+      - "src/security/**"
+      - "src/adapters/cp-native-binary-fence.mjs"
+      - "test/cp-native-binary-fence.test.mjs"
+      - "test/trusted-native-outbound.test.mjs"
+      - "scripts/hybrid/audit-native-surfaces.mjs"
+      - "docs/implementation/HYB-02-cp-enforcement.md"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/hyb-native-enforcement.yml"
+      - "src/security/**"
+      - "src/adapters/cp-native-binary-fence.mjs"
+      - "test/cp-native-binary-fence.test.mjs"
+      - "test/trusted-native-outbound.test.mjs"
+      - "scripts/hybrid/audit-native-surfaces.mjs"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  policy-unit:
+    name: HYB-02 CP guard, egress and concurrency negative tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout TMS
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Node 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+      - name: Security guard positive and denial acceptance
+        run: |
+          node --check src/adapters/cp-native-binary-fence.mjs
+          node --check src/security/trusted-native-outbound.mjs
+          node --test test/cp-native-binary-fence.test.mjs test/trusted-native-outbound.test.mjs
+  source-boundary:
+    name: HYB-02 pinned native caller and worker drift audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout TMS
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Checkout upstream exact reviewed SHA
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: DominicFinn/open_tms
+          ref: 623adec1370f1a85a92766cd0a028f7a451dab95
+          path: .upstream/open_tms
+          persist-credentials: false
+      - name: Node 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+      - name: Verify native storage, egress and worker inventory
+        run: node scripts/hybrid/audit-native-surfaces.mjs .upstream/open_tms
