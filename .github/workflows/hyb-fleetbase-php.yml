@@ -136,7 +136,7 @@ jobs:
             echo "Fleet-Ops $tenant native orders/drivers/vehicles migrated"
           done
       - name: Capture Composer advisories; never admit release from an audit warning
-        if: success()
+        if: always()
         shell: bash
         working-directory: .upstream/fleetbase/api
         run: |
@@ -146,6 +146,19 @@ jobs:
           echo "HYB-01 Composer audit exit status: $result" >> "$GITHUB_STEP_SUMMARY"
           if [ "$result" -ne 0 ]; then echo "::warning::Composer advisories or audit failure keep HYB-01 release HELD"; fi
           echo "HYB-01 production AGPL/commercial approval, image/SBOM/CVE and IAM/CP execution gates remain HELD." >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload sanitized non-secret native qualification evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4 pinned
+        with:
+          name: hyb01-fleetbase-php-source-and-migration-evidence
+          path: |
+            ${{ runner.temp }}/hyb01-lock-cyclonedx.json
+            ${{ runner.temp }}/hyb01-composer-audit.json
+            ${{ runner.temp }}/hyb01-audit-errors.txt
+            ${{ runner.temp }}/hyb01-migrate-a.txt
+            ${{ runner.temp }}/hyb01-migrate-b.txt
+          if-no-files-found: warn
+          retention-days: 7
       - name: Destroy disposable MySQL, credentials and downloaded environment
         if: always()
         run: |
