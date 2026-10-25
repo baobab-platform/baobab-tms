@@ -117,22 +117,25 @@ async function httpAcceptance() {
 async function sendWorkerProbe() {
   const native = new PgBossQueueAdapter(process.env.DATABASE_URL);
   await native.start();
+  let wrongOrg: string | undefined;
+  let own: string | undefined;
   try {
-    const wrongOrg = await native.publish(QUEUES.INBOUND_WEBHOOK, {
+    wrongOrg = await native.publish(QUEUES.INBOUND_WEBHOOK, {
       type: 'inbound.webhook', payload: {
         webhookLogId: webhookB, orgId: orgA, rawPayload: {},
         apiKeyId: null, ipAddress: '127.0.0.1'
       }
     });
-    const own = await native.publish(QUEUES.INBOUND_WEBHOOK, {
+    own = await native.publish(QUEUES.INBOUND_WEBHOOK, {
       type: 'inbound.webhook', payload: {
         webhookLogId: webhookA, orgId: orgA, rawPayload: {},
         apiKeyId: null, ipAddress: '127.0.0.1'
       }
     });
     // UUID job identifiers are non-secret; no customer data or JWT is logged.
-    console.log(JSON.stringify({result:'NATIVE_PGBOSS_PROBES_PUBLISHED', wrongOrg, own}));
   } finally { await native.stop(); }
+  // Publish the machine-readable witness after pg-boss shutdown diagnostics.
+  console.log(JSON.stringify({result:'NATIVE_PGBOSS_PROBES_PUBLISHED', wrongOrg, own}));
 }
 async function pollJob(jobId) {
   for (let i = 0; i < 45; i++) {
