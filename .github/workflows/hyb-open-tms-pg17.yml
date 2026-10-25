@@ -72,9 +72,10 @@ jobs:
           for tenant in a b; do
             if [ "$tenant" = a ]; then db_password="$HYB_PG_A_ROOT"; else db_password="$HYB_PG_B_ROOT"; fi
             url="postgresql://postgres:$db_password@postgres_$tenant:5432/opentms_$tenant?schema=public"
+            # Writable engine files live only in the disposable CI checkout.
             docker run --rm --network "hybpg17_tenant_$tenant" \
               --cap-drop ALL --security-opt no-new-privileges \
-              # Writable generated engine files only in the disposable CI checkout.\n              -v "$source_dir:/src" -w /src -e "DATABASE_URL=$url" \
+              -v "$source_dir:/src" -w /src -e "DATABASE_URL=$url" \
               --entrypoint node node:24-bookworm \
               /src/node_modules/prisma/build/index.js migrate deploy --schema /src/backend/prisma/schema
           done
