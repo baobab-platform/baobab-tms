@@ -63,6 +63,7 @@ for tenant in "ab":
     observed = exec_in(socket, ["node", "/app/hyb-socket-proof.cjs"], env={
         "HYB_SOCKET_OWN_KEY": values[f"HYB_SOCKET_{tenant.upper()}_KEY"],
         "HYB_SOCKET_FOREIGN_KEY": values[f"HYB_SOCKET_{foreign_label}_KEY"],
+        "HYB_SOCKET_ORIGIN": f"https://synthetic-{tenant}.example.invalid",
     })
     if "PINNED_FLEETBASE_SOCKET_AUTH_A_B" not in observed:
         raise AssertionError("Native SocketCluster JWT/channel acceptance missing")
