@@ -44,6 +44,8 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Validate pinned native multi-file Prisma schema
         working-directory: .upstream/open_tms
+        env:
+          DATABASE_URL: postgresql://unused:unused@localhost:5432/unused?schema=public
         run: |
           npm -w backend run prisma:generate
           node node_modules/prisma/build/index.js validate --schema backend/prisma/schema
