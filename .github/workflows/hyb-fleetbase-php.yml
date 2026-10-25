@@ -1,0 +1,146 @@
+name: TMS Fleetbase PHP MySQL Qualification
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/hyb-fleetbase-php.yml"
+      - "scripts/hybrid/fleetbase-lock-inventory.mjs"
+      - "test/fleetbase-lock-inventory.test.mjs"
+      - "docs/implementation/HYB-01-fleetbase-php.md"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/hyb-fleetbase-php.yml"
+      - "scripts/hybrid/fleetbase-lock-inventory.mjs"
+      - "test/fleetbase-lock-inventory.test.mjs"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  composer-migrate:
+    name: HYB-01 real vendor Composer and Fleet-Ops MySQL8 A/B migration
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout TMS
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Checkout pinned Fleetbase
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: fleetbase/fleetbase
+          ref: 9c5e164e5476b6038d24653f6e557b43aa27959c
+          path: .upstream/fleetbase
+          persist-credentials: false
+      - name: Checkout pinned Fleet-Ops
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: fleetbase/fleetops
+          ref: 33032e53ebee5e4a514970ee2379c12348c77c54
+          path: .upstream/fleetops
+          persist-credentials: false
+      - name: Node 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+      - name: Generate preliminary locked CycloneDX inventory
+        run: |
+          node --test test/fleetbase-lock-inventory.test.mjs
+          node scripts/hybrid/qualify-fleetbase-source.mjs .upstream
+          node scripts/hybrid/fleetbase-lock-inventory.mjs .upstream/fleetbase/api/composer.lock "$RUNNER_TEMP/hyb01-lock-cyclonedx.json"
+      - name: Configure supported patched PHP and Composer
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2 pinned
+        with:
+          php-version: "8.2"
+          tools: composer:v2
+          extensions: mbstring, xml, gd, zip, pdo_mysql, redis, sockets, intl, bcmath, gmp, pcntl, curl, exif, sodium, fileinfo
+          coverage: none
+      - name: Refuse vulnerable PHP runtime
+        run: |
+          php -v
+          php -r 'if (PHP_MAJOR_VERSION !== 8 || PHP_MINOR_VERSION !== 2 || version_compare(PHP_VERSION,"8.2.35","<")) exit(78);'
+          composer --version
+      - name: Start two disposable loopback-only MySQL8 instances
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          file="$RUNNER_TEMP/hyb-fleetbase-mysql.env"
+          {
+            printf 'MYSQL_PASS_A=%s\n' "$(openssl rand -hex 28)"
+            printf 'MYSQL_PASS_B=%s\n' "$(openssl rand -hex 28)"
+            printf 'APP_KEY=%s\n' "$(openssl rand -base64 32 | tr -d '\n')"
+          } > "$file"
+          echo "HYB_FLEET_MYSQL_ENV=$file" >> "$GITHUB_ENV"
+          source "$file"
+          docker run -d --name hyb01-php-mysql-a -p 127.0.0.1:33306:3306 -e "MYSQL_ROOT_PASSWORD=$MYSQL_PASS_A" -e MYSQL_DATABASE=fleetbase_a mysql:8.0.44
+          docker run -d --name hyb01-php-mysql-b -p 127.0.0.1:33307:3306 -e "MYSQL_ROOT_PASSWORD=$MYSQL_PASS_B" -e MYSQL_DATABASE=fleetbase_b mysql:8.0.44
+          for tenant in a b; do
+            ready=0
+            for attempt in $(seq 1 45); do
+              if docker exec "hyb01-php-mysql-$tenant" mysqladmin ping -h 127.0.0.1 -u root >/dev/null 2>&1; then ready=1; break; fi
+              sleep 2
+            done
+            test "$ready" = 1
+          done
+      - name: Install exact locked native Laravel and Fleet-Ops packages
+        shell: bash
+        working-directory: .upstream/fleetbase/api
+        env:
+          GH_PACKAGE_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cp .env.example .env
+          if [ -n "$GH_PACKAGE_TOKEN" ]; then
+            composer config --global github-oauth.github.com "$GH_PACKAGE_TOKEN"
+          fi
+          composer validate --no-check-publish
+          composer install --no-interaction --prefer-dist --no-progress --no-dev --no-scripts
+          test -f vendor/autoload.php
+          test -f vendor/fleetbase/fleetops-api/composer.json
+          php -r '$p=json_decode(file_get_contents("vendor/fleetbase/fleetops-api/composer.json"),true);if(($p["name"]??"")!=="fleetbase/fleetops-api"||($p["version"]??"")!=="0.6.74")exit(4);'
+      - name: Execute actual vendor migrations in native MySQL8 tenants A and B
+        shell: bash
+        working-directory: .upstream/fleetbase/api
+        run: |
+          set -euo pipefail
+          source "$HYB_FLEET_MYSQL_ENV"
+          export APP_ENV=testing APP_DEBUG=false APP_KEY="base64:$APP_KEY"
+          export DB_CONNECTION=mysql DB_HOST=127.0.0.1 DB_USERNAME=root
+          export QUEUE_CONNECTION=sync CACHE_DRIVER=array SESSION_DRIVER=array BROADCAST_DRIVER=log MAIL_MAILER=log
+          for tenant in a b; do
+            if [ "$tenant" = a ]; then export DB_PORT=33306 DB_PASSWORD="$MYSQL_PASS_A"
+            else export DB_PORT=33307 DB_PASSWORD="$MYSQL_PASS_B"; fi
+            export DB_DATABASE="fleetbase_$tenant"
+            export DATABASE_URL="mysql://root:$DB_PASSWORD@127.0.0.1:$DB_PORT/$DB_DATABASE"
+            php artisan package:discover --ansi
+            php artisan migrate --force --no-interaction --no-ansi
+            php artisan migrate:status --no-ansi > "$RUNNER_TEMP/hyb01-migrate-$tenant.txt"
+          done
+      - name: Independent native Fleet-Ops schema readback
+        shell: bash
+        run: |
+          set -euo pipefail
+          source "$HYB_FLEET_MYSQL_ENV"
+          for tenant in a b; do
+            if [ "$tenant" = a ]; then root="$MYSQL_PASS_A"; else root="$MYSQL_PASS_B"; fi
+            count=$(docker exec -e "MYSQL_PWD=$root" "hyb01-php-mysql-$tenant" mysql -u root -N -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='fleetbase_$tenant' AND table_name IN ('orders','drivers','vehicles')")
+            test "$count" = 3
+            echo "Fleet-Ops $tenant native orders/drivers/vehicles migrated"
+          done
+      - name: Capture Composer advisories; never admit release from an audit warning
+        if: success()
+        shell: bash
+        working-directory: .upstream/fleetbase/api
+        run: |
+          set +e
+          composer audit --locked --format=json > "$RUNNER_TEMP/hyb01-composer-audit.json" 2>"$RUNNER_TEMP/hyb01-audit-errors.txt"
+          result=$?
+          echo "HYB-01 Composer audit exit status: $result" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$result" -ne 0 ]; then echo "::warning::Composer advisories or audit failure keep HYB-01 release HELD"; fi
+          echo "HYB-01 production AGPL/commercial approval, image/SBOM/CVE and IAM/CP execution gates remain HELD." >> "$GITHUB_STEP_SUMMARY"
+      - name: Destroy disposable MySQL, credentials and downloaded environment
+        if: always()
+        run: |
+          docker rm -f hyb01-php-mysql-a hyb01-php-mysql-b >/dev/null 2>&1 || true
+          rm -f "$RUNNER_TEMP/hyb-fleetbase-mysql.env" .upstream/fleetbase/api/.env
