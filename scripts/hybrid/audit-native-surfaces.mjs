@@ -5,7 +5,7 @@
  * every native execution path is already certified. Security-critical vendor
  * source changes must update the classification, implementation, and tests.
  */
-import {readFileSync,readdirSync,statSync,existsSync} from "node:fs";
+import {readFileSync,readdirSync,existsSync} from "node:fs";
 import {join,relative} from "node:path";
 import {execFileSync} from "node:child_process";
 
