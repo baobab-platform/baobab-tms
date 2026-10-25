@@ -25,7 +25,7 @@ def sql(statement, must_fail=False):
 if not (170000 <= int(sql("SHOW server_version_num")) < 180000):
     raise AssertionError("Expected native proof on PG17")
 table = sql("SELECT to_regclass('tms.native_worker_execution')")
-if table != "native_worker_execution":
+if table not in ("native_worker_execution", "tms.native_worker_execution"):
     raise AssertionError("Canonical native worker ledger missing")
 scope = sql("""SELECT relrowsecurity::int||':'||relforcerowsecurity::int
                FROM pg_class WHERE oid='tms.native_worker_execution'::regclass""")
