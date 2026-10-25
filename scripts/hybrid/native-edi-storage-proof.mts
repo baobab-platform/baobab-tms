@@ -5,7 +5,7 @@
  */
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
-import { randomUUID, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
 import { TradingPartnerRepository } from "./backend/src/repositories/TradingPartnerRepository.js";
 import { OutboundEdiDeliveryService } from "./backend/src/services/OutboundEdiDeliveryService.js";
