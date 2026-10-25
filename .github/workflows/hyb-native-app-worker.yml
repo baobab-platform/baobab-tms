@@ -8,6 +8,9 @@ on:
     paths:
       - ".github/workflows/hyb-native-app-worker.yml"
       - "scripts/hybrid/native-open-tms-proof.mts"
+      - "scripts/hybrid/native-edi-storage-proof.mts"
+      - "src/adapters/tenant-binary-storage.mjs"
+      - "test/tenant-binary-storage.test.mjs"
       - "docs/implementation/HYB-02-native-app-worker.md"
   push:
     branches: [main]
@@ -42,6 +45,8 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "24"
+      - name: Verify Baobab tenant-bound native storage fence
+        run: node --test test/tenant-binary-storage.test.mjs
       - name: Install immutable upstream npm graph
         working-directory: .upstream/open_tms
         run: |
@@ -281,6 +286,21 @@ jobs:
             --entrypoint /src/node_modules/.bin/tsx node:24-bookworm \
             /src/hyb-native-proof.mts worker-verify "$jobs"
           echo "Independent tenant B native API and pg-boss worker qualification passed"
+      - name: Execute native EDI retry, webhook retry and DB document fencing in both deployments
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_dir="$PWD/.upstream/open_tms"
+          cp scripts/hybrid/native-edi-storage-proof.mts "$source_dir/hyb-native-edi-storage-proof.mts"
+          cp src/adapters/tenant-binary-storage.mjs "$source_dir/hyb-storage-boundary.mjs"
+          for tenant in a b; do
+            if [ "$tenant" = a ]; then app_env="$RUNNER_TEMP/hyb-native-app.env"; else app_env="$RUNNER_TEMP/hyb-native-app-b.env"; fi
+            docker run --rm --network "hybnative_tenant_$tenant" \
+              --cap-drop ALL --security-opt no-new-privileges \
+              --env-file "$app_env" -v "$source_dir:/src" -w /src \
+              --entrypoint /src/node_modules/.bin/tsx node:24-bookworm \
+              /src/hyb-native-edi-storage-proof.mts
+          done
       - name: Witness synthetic resource destruction
         if: always()
         shell: bash
