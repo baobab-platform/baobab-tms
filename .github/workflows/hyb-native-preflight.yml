@@ -93,7 +93,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          if [ -n "\${HYB02_ENV_FILE:-}" ] && [ -f "$HYB02_ENV_FILE" ]; then
+          if [ -n "${HYB02_ENV_FILE:-}" ] && [ -f "$HYB02_ENV_FILE" ]; then
             docker compose --env-file "$HYB02_ENV_FILE" -f ops/hybrid/docker-compose.data-plane.yml down --volumes --remove-orphans
             rm -f "$HYB02_ENV_FILE"
           fi
