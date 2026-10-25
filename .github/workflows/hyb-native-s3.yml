@@ -68,10 +68,10 @@ jobs:
             --cap-drop ALL --security-opt no-new-privileges \
             --env-file "$RUNNER_TEMP/hyb-s3.env" \
             -v hyb-s3-native-data:/data \
-            quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z \
+            docker.io/minio/minio:RELEASE.2025-04-22T22-12-26Z \
             server /data --address :9000
           docker image inspect --format '{{range .RepoDigests}}{{.}}{{end}}' \
-            quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z
+            docker.io/minio/minio:RELEASE.2025-04-22T22-12-26Z
       - name: Enforce separate MinIO bucket policies and application identities
         shell: bash
         run: |
@@ -81,7 +81,7 @@ jobs:
             --env-file "$RUNNER_TEMP/hyb-s3.env" \
             -v "$PWD/ops/hybrid/s3-policy:/policies:ro" \
             --entrypoint /bin/sh \
-            quay.io/minio/mc:RELEASE.2025-04-16T18-13-26Z -ec '
+            docker.io/minio/mc:RELEASE.2025-04-16T18-13-26Z -ec '
               ready=0
               for attempt in $(seq 1 40); do
                 if mc alias set s3 http://hyb-s3-minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null 2>&1 &&
@@ -102,7 +102,7 @@ jobs:
               mc admin policy attach s3 hyb-tenant-b --user "$HYB_S3_B_USER"
             '
           docker image inspect --format '{{range .RepoDigests}}{{.}}{{end}}' \
-            quay.io/minio/mc:RELEASE.2025-04-16T18-13-26Z
+            docker.io/minio/mc:RELEASE.2025-04-16T18-13-26Z
       - name: Test real vendor S3 adapter, restricted IAM and signed URL denial
         shell: bash
         run: |
