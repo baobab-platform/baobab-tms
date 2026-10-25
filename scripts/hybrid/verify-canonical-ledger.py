@@ -51,7 +51,7 @@ sql("""SET ROLE tms_probe;
        VALUES('synthetic-tenant','synthetic-bind','synthetic-org','synthetic-op',
          'edi-retry',repeat('a',64),1,'CLAIMED','test-idem','synthetic-cp',now()+interval '5 seconds');""",
     must_fail=True)
-if sql("SET ROLE tms_probe; SELECT COUNT(*) FROM tms.native_worker_execution") != "0":
+if sql("SET ROLE tms_probe; SELECT COUNT(*) FROM tms.native_worker_execution").splitlines()[-1] != "0":
     raise AssertionError("Runtime role must not see TMS worker custody")
 sql("""INSERT INTO tms.native_worker_execution
        (tenant_id,native_binding_id,operating_organisation_id,operation_id,
