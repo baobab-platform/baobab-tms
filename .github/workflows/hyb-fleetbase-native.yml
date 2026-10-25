@@ -7,6 +7,7 @@ on:
       - "scripts/hybrid/qualify-fleetbase-source.mjs"
       - "test/hyb01-fleetbase-source.test.mjs"
       - "scripts/hybrid/verify-fleetbase-isolation.py"
+      - "scripts/hybrid/native-fleetbase-socket-proof.cjs"
       - ".github/workflows/hyb-fleetbase-native.yml"
       - "docs/implementation/HYB-01-fleetbase-runtime.md"
   push:
@@ -102,6 +103,7 @@ jobs:
         run: |
           npm ci --no-audit --no-fund
           npm test
+          cp ../../../scripts/hybrid/native-fleetbase-socket-proof.cjs ./hyb-socket-proof.cjs
       - name: Create ephemeral native A/B database, Redis and SocketCluster secrets
         shell: bash
         run: |
