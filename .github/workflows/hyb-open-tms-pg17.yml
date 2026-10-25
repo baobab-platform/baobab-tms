@@ -74,8 +74,8 @@ jobs:
             url="postgresql://postgres:$db_password@postgres_$tenant:5432/opentms_$tenant?schema=public"
             docker run --rm --network "hybpg17_tenant_$tenant" \
               --cap-drop ALL --security-opt no-new-privileges \
-              -v "$source_dir:/src:ro" -w /src -e "DATABASE_URL=$url" \
-              --entrypoint node node:24-bookworm-slim \
+              # Writable generated engine files only in the disposable CI checkout.\n              -v "$source_dir:/src" -w /src -e "DATABASE_URL=$url" \
+              --entrypoint node node:24-bookworm \
               /src/node_modules/prisma/build/index.js migrate deploy --schema /src/backend/prisma/schema
           done
       - name: Verify native schema constraints and tenant negative path
