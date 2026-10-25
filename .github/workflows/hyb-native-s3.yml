@@ -79,6 +79,7 @@ jobs:
           docker run --rm --network hyb-s3 \
             --cap-drop ALL --security-opt no-new-privileges \
             --env-file "$RUNNER_TEMP/hyb-s3.env" \
+            -e MC_CONFIG_DIR=/tmp/.mc \
             -v "$PWD/ops/hybrid/s3-policy:/policies:ro" \
             --entrypoint /bin/sh \
             docker.io/clickhouse/minio-mc:RELEASE.2025-04-16T18-13-26Z -ec '
