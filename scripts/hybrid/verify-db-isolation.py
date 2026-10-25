@@ -42,7 +42,9 @@ for name, network in expected.items():
     svc = config["services"][name]
     if svc.get("ports") or svc.get("privileged") or svc.get("network_mode") == "host":
         raise RuntimeError("Unsafe port/privilege exposure: " + name)
-    if svc.get("networks") != [network]:
+    networks = svc.get("networks", [])
+    names = list(networks) if isinstance(networks, dict) else networks
+    if names != [network]:
         raise RuntimeError("Unexpected network placement: " + name)
     if not config["networks"][network].get("internal"):
         raise RuntimeError("Tenant data network is not isolated: " + network)
