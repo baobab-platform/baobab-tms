@@ -56,6 +56,10 @@ export function patchNative(root,tms) {
   s=replaceExact(s,"body: request.ediContent,\n      });",
    "body: request.ediContent,\n      }, {tenantId:'',organisationId:partner.orgId,partnerId:partner.id,kind:'EDI'});",1,edi);
   if(/\bfetch\s*\(/.test(s))throw Error("Unpatched EDI fetch");
+  // SFTP must not dial an untrusted native hostname in a quarantine build.
+  // Host-key pinning and CP destination policy are required before enabling it.
+  s=replaceExact(s,"private async deliverViaSftp(partner: TradingPartnerWithTransactions, request: OutboundDeliveryRequest): Promise<DeliveryResult> {",
+    "private async deliverViaSftp(partner: TradingPartnerWithTransactions, request: OutboundDeliveryRequest): Promise<DeliveryResult> {\n    throw new Error('Native SFTP denied without CP approved target and pinned SSH host key');",1,edi);
   set(edi,s);
 
   const webhook="backend/src/services/webhooks/CustomerWebhookDeliveryService.ts";
