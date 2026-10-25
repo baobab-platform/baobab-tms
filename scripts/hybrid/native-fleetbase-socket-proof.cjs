@@ -12,7 +12,9 @@ async function connect(token){
  const client=create({
   hostname:'127.0.0.1',port:8000,path:'/socketcluster/',
   autoReconnect:false,ackTimeout:4000,
-  authEngine:memoryAuthEngine(token),query:{client:'hyb01-native-test/1.0'}
+  authEngine:memoryAuthEngine(token),
+  wsOptions:{origin:process.env.HYB_SOCKET_ORIGIN},
+  query:{client:'hyb01-native-test/1.0'}
  });
  try{
   const status=await withTimeout(client.listener('connect').once(),5000,'pinned socket connect');
