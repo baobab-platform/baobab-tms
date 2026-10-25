@@ -71,6 +71,10 @@ export function createNativeWorkerFence({
          !Number.isSafeInteger(claim.leaseGeneration)||claim.leaseGeneration<1)
           throw new NativeWorkerDenied("Unknown, conflicting or active worker execution");
       try {
+        // A durable claim may block beyond the CP grant's short expiry.
+        // Refresh authority AFTER claim, directly before the external effect.
+        // A revoked or changed binding must never reach native execution.
+        await check(e);
         const result=await handler(e);
         // Recheck after effect. A revoked/expired CP binding makes the result
         // UNKNOWN; never silently commit a native carrier/accounting outcome.
