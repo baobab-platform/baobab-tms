@@ -46,6 +46,7 @@ jobs:
         working-directory: .upstream/open_tms
         run: |
           npm ci --no-audit --no-fund
+          npm -w packages/shared run build
           npm -w backend run prisma:generate
           test "$(git rev-parse HEAD)" = "623adec1370f1a85a92766cd0a028f7a451dab95"
       - name: Generate disposable database and app secrets
