@@ -29,8 +29,8 @@ test("tenant and organisation cannot read or mutate each other's raw storage", a
   assert.equal(await b.exists(id), false);
   assert.equal(await sibling.exists(id), false);
   await assert.rejects(b.retrieve(id), /Missing object/);
-  await assert.rejects(a.retrieve("t/" + A + "/o/" + C + "/binary/" + id), /Invalid opaque/);
-  await assert.rejects(a.delete("../" + id), /Invalid opaque/);
+  assert.throws(() => a.retrieve("t/" + A + "/o/" + C + "/binary/" + id), /Invalid opaque/);
+  assert.throws(() => a.delete("../" + id), /Invalid opaque/);
   await b.delete(id);
   assert.equal(await a.exists(id), true);
   assert.equal(raw.values.size, 1);
