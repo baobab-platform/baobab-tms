@@ -1,6 +1,6 @@
 # TMS-TECH-01 — Headless, Self-Hosted Transportation Runtime and OSS Reuse Strategy
 
-**Status:** Proposed — **SUPERSEDED IN PART** by Accepted ADR-TMS-0020/0021 (2026-10-25); not implemented, certified, activated or production-ready  
+**Status:** Superseded in part — ADR-TMS-0020/0021 govern hybrid execution and native database exceptions; remaining guidance is non-conflicting only  
 **Date:** 2026-10-08  
 **Repository:** baobab-platform/baobab-tms  
 **Decision scope:** engine-local technology, build/adopt boundary, operability, open-source selection and implementation gates  

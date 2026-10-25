@@ -1,0 +1,15 @@
+# Foundation traits only, not a capability/provider activation.
+# Experimental: no container, no live TMS business endpoints.
+schema_version: 1
+repository:
+  lifecycle: experimental
+capabilities:
+  - engine
+  - documentation
+environment:
+  baobab_dev:
+    required: false
+artifacts:
+  container: false
+security:
+  sast_provider: fallback

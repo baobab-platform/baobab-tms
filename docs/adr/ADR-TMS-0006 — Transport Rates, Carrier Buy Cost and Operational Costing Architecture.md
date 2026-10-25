@@ -1,12 +1,13 @@
 # ADR-TMS-0006 — Transport Rates, Carrier Buy Cost and Operational Costing Architecture
 
-**Status:** Proposed — architectural review; not yet accepted or implemented  
+**Status:** Accepted — as amended by ADR-TMS-0020/0021; not implementation or certification
 **Date:** 2026-10-08  
+**Ratified:** 2026-10-25 — Platform Owner; see [governance reconciliation](ADR-GOVERNANCE-2026-10-25.md)  
 **Repository:** baobab-platform/baobab-tms  
 **Depends on:** Accepted ADR-TMS-0001 and ADR-TMS-0002; TMS-TECH-01 (separate technology proposal); applicable Shared contracts  
 **Authority:** Shared for canonical contract and event publication; CP for provider/tenant binding and certification; IAM for identity  
 
-> **Evidence boundary:** This ADR defines proposed domain/implementation rules. It does not create a deployed service, implemented capability, certified provider, qualified carrier, regulatory approval or live integration.
+> **Evidence boundary:** This Accepted decision governs target semantics and tests only; implementation and runtime/provider activation require separate evidence.
 
 
 ## 1. Decision
