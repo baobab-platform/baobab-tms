@@ -42,7 +42,10 @@ CREATE TABLE IF NOT EXISTS tms.consignment (
   created_at timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (tenant_id, consignment_id),
   UNIQUE (tenant_id, consignment_id, operating_organisation_id, legal_entity_id, market_id),
-  CHECK (length(consignor_reference) > 0 AND length(consignee_reference) > 0)
+  CHECK (length(consignor_reference) > 0 AND length(consignee_reference) > 0 AND
+    length(tenant_id) > 0 AND length(consignment_id) > 0 AND
+    length(operating_organisation_id) > 0 AND
+    length(legal_entity_id) > 0 AND length(market_id) > 0)
 );
 
 -- Cross-engine source lineage is not interchangeable with shipment identity.
@@ -97,7 +100,7 @@ CREATE TABLE IF NOT EXISTS tms.shipment_consignment_allocation (
     REFERENCES tms.cargo_item (tenant_id, shipment_id, cargo_item_id)
     ON DELETE RESTRICT,
   CHECK ((allocation_quantity IS NULL AND allocation_unit IS NULL)
-      OR (allocation_quantity IS NOT NULL AND length(allocation_unit) > 0))
+      OR (allocation_quantity IS NOT NULL AND allocation_unit IS NOT NULL AND length(allocation_unit) > 0))
 );
 
 -- One internal native-binding identity per scoped execution provider record.
@@ -124,8 +127,36 @@ CREATE TABLE IF NOT EXISTS tms.native_execution_binding (
   CHECK (lifecycle_state IN ('CREATED','CONFIGURING','VERIFYING','READY',
                              'ACTIVE','DEGRADED','SUSPENDED','MIGRATING',
                              'RETIRING','DEPROVISIONED','BLOCKED','FAILED')),
+  CHECK (length(tenant_id) > 0 AND length(binding_id) > 0 AND
+    length(operating_organisation_id) > 0 AND
+    length(legal_entity_id) > 0 AND length(market_id) > 0),
   CHECK (lifecycle_state <> 'ACTIVE' OR (
+    readiness = 'READY' AND
     verified_until IS NOT NULL AND health_expires_at IS NOT NULL AND
+    native_provider_release_digest ~ '^sha256:[a-f0-9]{64}
+    native_provider_release_digest IS NOT NULL AND
+    native_credential_secret_ref IS NOT NULL AND
+    cp_capability_binding_revision IS NOT NULL AND policy_digest IS NOT NULL
+  ))
+);
+
+-- Deliberately NO RLS policies. Even permissive-scoped policies would be
+-- deceptive without verified IAM/CP context and transaction role mapping.
+ALTER TABLE tms.logistics_shipment ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tms.consignment ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tms.shipment_source_requirement ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tms.cargo_item ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tms.shipment_consignment_allocation ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tms.native_execution_binding ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tms.logistics_shipment FORCE ROW LEVEL SECURITY;
+ALTER TABLE tms.consignment FORCE ROW LEVEL SECURITY;
+ALTER TABLE tms.shipment_source_requirement FORCE ROW LEVEL SECURITY;
+ALTER TABLE tms.cargo_item FORCE ROW LEVEL SECURITY;
+ALTER TABLE tms.shipment_consignment_allocation FORCE ROW LEVEL SECURITY;
+ALTER TABLE tms.native_execution_binding FORCE ROW LEVEL SECURITY;
+
+COMMIT;
+ AND
     native_provider_release_digest IS NOT NULL AND
     native_credential_secret_ref IS NOT NULL AND
     cp_capability_binding_revision IS NOT NULL AND policy_digest IS NOT NULL
