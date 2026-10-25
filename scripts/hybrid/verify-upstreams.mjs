@@ -54,10 +54,14 @@ export function evidenceInspection(m, root) {
     }
   }
   const fleetbase = readFileSync(join(root, "fleetbase/docker-compose.yml"), "utf8");
+  const fleetbaseLicense = readFileSync(join(root, "fleetbase/LICENSE.md"), "utf8");
+  const openLicense = readFileSync(join(root, "open_tms/LICENCE.md"), "utf8");
   const fleetops = JSON.parse(readFileSync(join(root, "fleetops/composer.json"), "utf8"));
   const opentms = readFileSync(join(root, "open_tms/docs/MULTI_TENANCY_REMEDIATION_PLAN.md"), "utf8");
   const compose = readFileSync(join(root, "open_tms/docker-compose.yml"), "utf8");
-  if (!/image:\s*mysql:8/.test(fleetbase) || !/redis/i.test(fleetbase) ||
+  if (!/GNU Affero General Public License/.test(fleetbaseLicense) ||
+      !/^MIT License/.test(openLicense) ||
+      !/image:\s*mysql:8/.test(fleetbase) || !/redis/i.test(fleetbase) ||
       !/socket/i.test(fleetbase) || !/AGPL-3.0/.test(fleetops.license) ||
       !/postgres:16/.test(compose) || !/cross-tenant|multi-tenan/i.test(opentms)) {
     throw new Error("Upstream assumptions changed; re-audit, do not rubber-stamp");
