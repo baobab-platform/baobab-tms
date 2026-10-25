@@ -137,7 +137,7 @@ async function exerciseWebhook(base, queue) {
     assert.equal(updated.attemptCount, 2);
     const hit = receipts.find(r => r.path === "/webhook/" + row.suffix);
     assert(hit, "Native delivery must reach own loopback receiver");
-    assert.equal(JSON.parse(hit.body).data.test,"webhook-"+row.suffix);
+    assert.equal(JSON.parse(hit.body).test,"webhook-"+row.suffix);
     assert(verifySignature(row.webhook.secret,hit.headers["x-opentms-signature"],hit.body),
       "Own HMAC must validate");
     const foreign = fixture.find(x=>x.org!==row.org);
