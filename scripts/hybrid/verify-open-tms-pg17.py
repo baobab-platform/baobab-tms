@@ -82,11 +82,14 @@ if query("b", "SELECT marker FROM public._baobab_smoke") != "native-b":
     raise RuntimeError("Incorrect data owner B")
 
 # Negative native DB network access: A network has no route to B.
+cross_tenant_check_cmd = (
+    'PGPASSWORD="$POSTGRES_PASSWORD" psql ' +
+    '"host=postgres_b connect_timeout=3 user=postgres dbname=opentms_b" ' +
+    '-c "SELECT 1"'
+)
 result = subprocess.run(
     base + ["exec", "-T", "postgres_a", "sh", "-ec",
-            'PGPASSWORD="$POSTGRES_PASSWORD" psql '
-            '"host=postgres_b connect_timeout=3 user=postgres dbname=opentms_b" '
-            '-c "SELECT 1"'],
+            cross_tenant_check_cmd],
     capture_output=True, text=True, timeout=15, check=False
 )
 if result.returncode == 0:
