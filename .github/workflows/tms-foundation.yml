@@ -38,6 +38,24 @@ jobs:
           node-version: "24"
       - name: Verify syntax and adversarial foundation tests
         run: npm run check
+      - name: Checkout exact Shared contract revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: baobab-platform/shared
+          ref: 2986b7c1c884f0556d8e0dac523f2bceb27646c1
+          path: .shared
+          persist-credentials: false
+      - name: Set up Shared contract validator
+        uses: actions/setup-python@06da6279cdbca41027908073e81a4544dc79c06b # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Validate planned provider declaration against Shared
+        run: |
+          python -m pip install --disable-pip-version-check -r .shared/.github/foundation-tests/requirements.txt
+          python .shared/scripts/capability_catalogue.py \
+            --contracts-root .shared/contracts \
+            validate-declaration .baobab/capability-provider.yaml \
+            --engine-id baobab-tms --repository-root .
       - name: Guard against false provider activation
         shell: bash
         run: |
