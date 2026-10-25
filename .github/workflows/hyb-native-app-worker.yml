@@ -199,6 +199,88 @@ jobs:
             -v "$source_dir:/src" -w /src \
             --entrypoint /src/node_modules/.bin/tsx node:24-bookworm \
             /src/hyb-native-proof.mts worker-verify "$jobs"
+      - name: Start separate real native application and integration worker for tenant B
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_dir="$PWD/.upstream/open_tms"
+          docker run --rm --network hybnative_tenant_b \
+            --cap-drop ALL --security-opt no-new-privileges \
+            --env-file "$RUNNER_TEMP/hyb-native-app-b.env" \
+            -v "$source_dir:/src" -w /src \
+            --entrypoint /src/node_modules/.bin/tsx node:24-bookworm \
+            /src/hyb-native-proof.mts seed
+          docker run -d --name hyb-native-api-b --network hybnative_tenant_b \
+            --cap-drop ALL --security-opt no-new-privileges \
+            --env-file "$RUNNER_TEMP/hyb-native-app-b.env" \
+            -v "$source_dir:/src" -w /src \
+            --entrypoint /src/node_modules/.bin/tsx node:24-bookworm \
+            /src/backend/src/index.ts
+          docker run -d --name hyb-native-worker-b --network hybnative_tenant_b \
+            --cap-drop ALL --security-opt no-new-privileges \
+            --env-file "$RUNNER_TEMP/hyb-native-app-b.env" \
+            -v "$source_dir:/src" -w /src \
+            --entrypoint /src/node_modules/.bin/tsx node:24-bookworm \
+            /src/backend/src/worker.ts
+          api_b=0
+          for attempt in $(seq 1 45); do
+            if docker exec hyb-native-api-b node -e 'fetch("http://localhost:3001/health").then(x=>process.exit(x.ok?0:1)).catch(()=>process.exit(1))' >/dev/null 2>&1; then
+              api_b=1
+              break
+            fi
+            sleep 2
+          done
+          worker_b=0
+          for attempt in $(seq 1 45); do
+            if docker logs hyb-native-worker-b 2>&1 | grep -q 'Waiting for jobs'; then
+              worker_b=1
+              break
+            fi
+            sleep 2
+          done
+          echo "Tenant B native API ready: $api_b; native worker ready: $worker_b"
+          if [ "$api_b" != 1 ] || [ "$worker_b" != 1 ]; then
+            for service in hyb-native-api-b hyb-native-worker-b; do
+              docker inspect --format 'Native {{.Name}} {{.State.Status}} exit={{.State.ExitCode}}' "$service" || true
+              docker logs "$service" 2>&1 | grep -Ei 'error|failed|unable|cannot|missing|started|running|queue|worker' \
+                | sed -E 's#postgres(ql)?://[^ ]+#<redacted-dsn>#g' | tail -n 24 || true
+            done
+            exit 1
+          fi
+      - name: Prove bidirectional native application network isolation
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Even if the same synthetic UUIDs appear on each DB, a running API
+          # in tenant A must have no path to native tenant B's API, or reverse.
+          docker exec hyb-native-api node -e 'fetch("http://hyb-native-api-b:3001/health",{signal:AbortSignal.timeout(2500)}).then(()=>process.exit(1)).catch(()=>process.exit(0))'
+          docker exec hyb-native-api-b node -e 'fetch("http://hyb-native-api:3001/health",{signal:AbortSignal.timeout(2500)}).then(()=>process.exit(1)).catch(()=>process.exit(0))'
+          echo "Native A/B application network noninterference confirmed"
+      - name: Prove tenant B native authenticated HTTP routes and worker queue
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_dir="$PWD/.upstream/open_tms"
+          docker run --rm --network hybnative_tenant_b \
+            --cap-drop ALL --security-opt no-new-privileges \
+            --env-file "$RUNNER_TEMP/hyb-native-app-b.env" \
+            -v "$source_dir:/src" -w /src \
+            --entrypoint /src/node_modules/.bin/tsx node:24-bookworm \
+            /src/hyb-native-proof.mts http
+          jobs=$(docker run --rm --network hybnative_tenant_b \
+            --cap-drop ALL --security-opt no-new-privileges \
+            --env-file "$RUNNER_TEMP/hyb-native-app-b.env" \
+            -v "$source_dir:/src" -w /src \
+            --entrypoint /src/node_modules/.bin/tsx node:24-bookworm \
+            /src/hyb-native-proof.mts publish | tail -n 1)
+          test -n "$jobs"
+          docker run --rm --network hybnative_tenant_b \
+            --cap-drop ALL --security-opt no-new-privileges \
+            --env-file "$RUNNER_TEMP/hyb-native-app-b.env" \
+            -v "$source_dir:/src" -w /src \
+            --entrypoint /src/node_modules/.bin/tsx node:24-bookworm \
+            /src/hyb-native-proof.mts worker-verify "$jobs"
+          echo "Independent tenant B native API and pg-boss worker qualification passed"
       - name: Witness synthetic resource destruction
         if: always()
         shell: bash
