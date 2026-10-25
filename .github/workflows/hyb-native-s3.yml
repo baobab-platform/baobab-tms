@@ -1,0 +1,138 @@
+# HYB-02 native S3 isolation; real pinned Open TMS SDK + disposable MinIO.
+# No public ports, no CP/IAM runtime authority, no production activation.
+name: TMS Native S3 Tenant Isolation
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/hyb-native-s3.yml"
+      - "ops/hybrid/s3-policy/**"
+      - "scripts/hybrid/native-s3-minio-proof.mts"
+      - "src/adapters/tenant-binary-storage.mjs"
+      - "docs/implementation/HYB-02-native-s3.md"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/hyb-native-s3.yml"
+      - "ops/hybrid/s3-policy/**"
+      - "scripts/hybrid/native-s3-minio-proof.mts"
+      - "src/adapters/tenant-binary-storage.mjs"
+  workflow_dispatch:
+permissions:
+  contents: read
+
+jobs:
+  native-s3:
+    name: HYB-02 pinned native MinIO S3 IAM A/B
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout TMS
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Checkout immutable vendor source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: DominicFinn/open_tms
+          ref: 623adec1370f1a85a92766cd0a028f7a451dab95
+          path: .upstream/open_tms
+          persist-credentials: false
+      - name: Node 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+      - name: Install pinned Open TMS npm dependency graph
+        working-directory: .upstream/open_tms
+        run: |
+          npm ci --no-audit --no-fund
+          test "$(git rev-parse HEAD)" = "623adec1370f1a85a92766cd0a028f7a451dab95"
+      - name: Generate ephemeral tenant S3 IAM credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          file="$RUNNER_TEMP/hyb-s3.env"
+          {
+            printf 'MINIO_ROOT_USER=hyb-root-%s\n' "$(openssl rand -hex 5)"
+            printf 'MINIO_ROOT_PASSWORD=%s\n' "$(openssl rand -hex 28)"
+            printf 'HYB_S3_A_USER=hyb-tenant-a\nHYB_S3_B_USER=hyb-tenant-b\n'
+            printf 'HYB_S3_A_PASS=%s\n' "$(openssl rand -hex 28)"
+            printf 'HYB_S3_B_PASS=%s\n' "$(openssl rand -hex 28)"
+          } > "$file"
+      - name: Start ephemeral MinIO with no host ports
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker network create --internal hyb-s3
+          docker run -d --name hyb-s3-minio --network hyb-s3 \
+            --cap-drop ALL --security-opt no-new-privileges \
+            --env-file "$RUNNER_TEMP/hyb-s3.env" \
+            -v hyb-s3-native-data:/data \
+            ghcr.io/coollabsio/minio@sha256:a4938f37f1be1841b8e7b627ad0207b265345fd0d063e42d7410c78af0e63e68 \
+            server /data --address :9000
+          docker image inspect --format '{{range .RepoDigests}}{{.}}{{end}}' \
+            ghcr.io/coollabsio/minio@sha256:a4938f37f1be1841b8e7b627ad0207b265345fd0d063e42d7410c78af0e63e68
+      - name: Enforce separate MinIO bucket policies and application identities
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --network hyb-s3 \
+            --cap-drop ALL --security-opt no-new-privileges \
+            --env-file "$RUNNER_TEMP/hyb-s3.env" \
+            -e MC_CONFIG_DIR=/tmp/.mc \
+            -v "$PWD/ops/hybrid/s3-policy:/policies:ro" \
+            --entrypoint /bin/sh \
+            docker.io/clickhouse/minio-mc@sha256:aead63c77f9db9107f1696fb08ecb0faeda23729cde94b0f663edf4fe09728e3 -ec '
+              ready=0
+              for attempt in $(seq 1 18); do
+                if mc alias set s3 http://hyb-s3-minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null 2>&1 &&
+                   mc ls s3 >/dev/null 2>&1; then
+                  ready=1
+                  break
+                fi
+                sleep 2
+              done
+              if [ "$ready" != 1 ]; then
+                echo "Authenticated native MinIO probe did not become ready"
+                mc ls s3 2>&1 | tail -n 5 || true
+                exit 1
+              fi
+              mc mb s3/hyb-tenant-a
+              mc mb s3/hyb-tenant-b
+              mc admin user add s3 "$HYB_S3_A_USER" "$HYB_S3_A_PASS"
+              mc admin user add s3 "$HYB_S3_B_USER" "$HYB_S3_B_PASS"
+              mc admin policy create s3 hyb-tenant-a /policies/tenant-a.json
+              mc admin policy create s3 hyb-tenant-b /policies/tenant-b.json
+              mc admin policy attach s3 hyb-tenant-a --user "$HYB_S3_A_USER"
+              mc admin policy attach s3 hyb-tenant-b --user "$HYB_S3_B_USER"
+            '
+          docker image inspect --format '{{range .RepoDigests}}{{.}}{{end}}' \
+            docker.io/clickhouse/minio-mc@sha256:aead63c77f9db9107f1696fb08ecb0faeda23729cde94b0f663edf4fe09728e3
+      - name: Test real vendor S3 adapter, restricted IAM and signed URL denial
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_dir="$PWD/.upstream/open_tms"
+          cp scripts/hybrid/native-s3-minio-proof.mts "$source_dir/hyb-native-s3-proof.mts"
+          cp src/adapters/tenant-binary-storage.mjs "$source_dir/hyb-storage-boundary.mjs"
+          docker run --rm --network hyb-s3 \
+            --cap-drop ALL --security-opt no-new-privileges \
+            --env-file "$RUNNER_TEMP/hyb-s3.env" \
+            -v "$source_dir:/src" -w /src \
+            --entrypoint /src/node_modules/.bin/tsx node:24-bookworm \
+            /src/hyb-native-s3-proof.mts
+      - name: Redacted MinIO server startup diagnostics on test failure
+        if: failure()
+        shell: bash
+        run: |
+          docker inspect --format 'MinIO container {{.State.Status}} exit={{.State.ExitCode}}' hyb-s3-minio || true
+          docker logs hyb-s3-minio 2>&1 | tail -n 25 || true
+      - name: Independently destroy object store, IAM and ephemeral credentials
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          docker rm -f hyb-s3-minio >/dev/null 2>&1
+          docker volume rm hyb-s3-native-data >/dev/null 2>&1
+          docker network rm hyb-s3 >/dev/null 2>&1
+          rm -f "$RUNNER_TEMP/hyb-s3.env"
