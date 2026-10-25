@@ -4,7 +4,6 @@
 This uses real vendor socket/server.js; native Fleet-Ops PHP migrations and
 API are NOT included and must not be implied by these assertions.
 """
-import os
 import subprocess
 import sys
 import time
@@ -34,12 +33,6 @@ def node(container, code, success=True):
     return exec_in(container, ["node", "-e", code], success=success)
 
 
-def probe_socket(container):
-    return node(container,
-                """fetch('http://127.0.0.1:8000/health-check', {signal:AbortSignal.timeout(2500)})
-                .then(r=>process.exit(r.status===200?0:1)).catch(()=>process.exit(1))""",
-                success=False)  # handled as status below
-
 
 for tenant in "ab":
     socket = f"hybfleet-socket-{tenant}"
@@ -48,10 +41,10 @@ for tenant in "ab":
         f"HYB_SOCKET_{'B' if tenant == 'a' else 'A'}_KEY"
     ]:
         raise AssertionError("Native socket signing keys must be independent")
-    for attempt in range(40):
+    for _ in range(40):
         result = subprocess.run(
             ["docker", "exec", socket, "node", "-e",
-             "fetch('http://127.0.0.1:8000/health-check',{signal:AbortSignal.timeout(2500)})"
+             "fetch('http://127.0.0.1:8000/health-check',{signal:AbortSignal.timeout(2500)})" +
              ".then(x=>process.exit(x.ok?0:1)).catch(()=>process.exit(1))"],
             capture_output=True, timeout=8)
         if result.returncode == 0:
@@ -61,6 +54,16 @@ for tenant in "ab":
         p = subprocess.run(["docker", "logs", "--tail", "25", socket],
                            capture_output=True, text=True, timeout=10)
         raise AssertionError("Pinned Fleetbase socket did not boot: " + p.stderr[-2200:])
+    # Real pinned Fleetbase SocketCluster JWT and subscription authorisation.
+    # Foreign-deployment key must fail authentication; anonymous clients
+    # cannot subscribe to an owner channel even if the public health is OK.
+    foreign_label = "B" if tenant == "a" else "A"
+    observed = exec_in(socket, ["node", "/app/hyb-socket-proof.cjs"], env={
+        "HYB_SOCKET_OWN_KEY": values[f"HYB_SOCKET_{tenant.upper()}_KEY"],
+        "HYB_SOCKET_FOREIGN_KEY": values[f"HYB_SOCKET_{foreign_label}_KEY"],
+    })
+    if "PINNED_FLEETBASE_SOCKET_AUTH_A_B" not in observed:
+        raise AssertionError("Native SocketCluster JWT/channel acceptance missing")
     passcode = values[f"HYB_REDIS_{tenant.upper()}_PASS"]
     assert exec_in(redis, ["redis-cli", "--no-auth-warning", "PING"],
                    env={"REDISCLI_AUTH": passcode}) == "PONG"
