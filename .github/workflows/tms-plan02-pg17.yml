@@ -1,0 +1,76 @@
+name: TMS PLAN-02 PG17 Transport Custody
+on:
+  pull_request:
+    paths:
+      - "db/migrations/0004_transport_plan_and_movement.sql"
+      - "scripts/hybrid/verify-transport-plan-pg17.py"
+      - "docs/implementation/TMS-PLAN-02-pg17-custody.md"
+      - ".github/workflows/tms-plan02-pg17.yml"
+  push:
+    branches: [main]
+    paths:
+      - "db/migrations/0004_transport_plan_and_movement.sql"
+      - "scripts/hybrid/verify-transport-plan-pg17.py"
+      - ".github/workflows/tms-plan02-pg17.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  actual-pg17-cas:
+    name: TMS-PLAN-02 actual PG17 immutable revisions and concurrent CAS
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout stacked TMS
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Node 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+      - name: Recheck pure domain requirements before physical migration
+        run: node --test test/shipment.test.mjs test/transport-plan.test.mjs
+      - name: Generate isolated ephemeral database secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          file="$RUNNER_TEMP/tms-plan-pg17.env"
+          : > "$file"
+          for name in HYB_MYSQL_A_ROOT HYB_MYSQL_B_ROOT HYB_MYSQL_A_APP HYB_MYSQL_B_APP HYB_PG_A_ROOT HYB_PG_B_ROOT HYB_PG_A_APP HYB_PG_B_APP; do
+            printf '%s=%s\n' "$name" "$(openssl rand -hex 24)" >> "$file"
+          done
+          echo "TMS_PLAN_DB_ENV=$file" >> "$GITHUB_ENV"
+      - name: Start disposable PostgreSQL 17 with private network and no host port
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose --env-file "$TMS_PLAN_DB_ENV" \
+            -f ops/hybrid/docker-compose.data-plane.yml up -d --wait postgres_a
+      - name: Apply all four first-party canonical migrations
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in \
+            db/migrations/0001_foundation.sql \
+            db/migrations/0002_native_worker_execution.sql \
+            db/migrations/0003_native_provisioning_custody.sql \
+            db/migrations/0004_transport_plan_and_movement.sql; do
+            docker compose --env-file "$TMS_PLAN_DB_ENV" \
+              -f ops/hybrid/docker-compose.data-plane.yml exec -T postgres_a \
+              psql -U postgres -d opentms_a -v ON_ERROR_STOP=1 < "$file"
+          done
+      - name: Execute real two-writer CAS, immutability, FK and RLS negatives
+        run: python3 scripts/hybrid/verify-transport-plan-pg17.py "$TMS_PLAN_DB_ENV"
+      - name: Destroy private credentials, volumes and database
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          file="$RUNNER_TEMP/tms-plan-pg17.env"
+          if [ -f "$file" ]; then
+            docker compose --env-file "$file" \
+              -f ops/hybrid/docker-compose.data-plane.yml down -v --remove-orphans
+            rm -f "$file"
+          fi
