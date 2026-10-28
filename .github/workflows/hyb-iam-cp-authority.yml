@@ -1,0 +1,35 @@
+name: TMS HYB-04 IAM CP Authority Preflight
+on:
+  pull_request:
+    paths:
+      - "src/security/iam-cp-native-execution-authority.mjs"
+      - "test/iam-cp-native-execution-authority.test.mjs"
+      - "docs/implementation/HYB-04-iam-cp-authority-scaffold.md"
+      - ".github/workflows/hyb-iam-cp-authority.yml"
+  push:
+    branches: [main]
+    paths:
+      - "src/security/iam-cp-native-execution-authority.mjs"
+      - "test/iam-cp-native-execution-authority.test.mjs"
+      - ".github/workflows/hyb-iam-cp-authority.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  deny-unverified:
+    name: HYB-04 synthetic IAM CP chain and no-execution negative matrix
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout TMS
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Node 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+      - name: Verify guard and rejection matrix
+        run: |
+          node --check src/security/iam-cp-native-execution-authority.mjs
+          node --test test/iam-cp-native-execution-authority.test.mjs
