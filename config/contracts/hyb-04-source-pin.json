@@ -1,0 +1,33 @@
+{
+  "schema": "baobab.tms.hyb04.source-pin.v1",
+  "status": "PINNED_CONTRACTS_NO_CONNECTED_EXECUTION",
+  "shared": {
+    "repository": "baobab-platform/shared",
+    "commit": "ab7a473a1f69784f115ad353e36383faf9b95965",
+    "validation": "contracts/control-plane/v1/platform-context.schema.json#/$defs/PlatformContextValidation",
+    "validationRequest": "contracts/control-plane/v1/platform-context.schema.json#/$defs/PlatformContextValidateRequest",
+    "v2": "contracts/control-plane/v2/platform-context.schema.json",
+    "capability": "contracts/capability/v1/resolution.schema.json",
+    "operation": "contracts/control-plane/v1/execution-operation.schema.json",
+    "registry": "contracts/identity/v1/workload-registry.yaml"
+  },
+  "controlPlane": {
+    "repository": "baobab-platform/baobab-cp",
+    "commit": "6b0ec5fa70b4ccc2b7ab9ff0cd8829a080d355ff",
+    "endpoint": "POST /v1/platform-context/validate",
+    "handler": "api/platform_context_validate_handler.go",
+    "capabilityHandler": "api/capability_resolve_handler.go"
+  },
+  "iam": {
+    "repository": "baobab-platform/baobab-iam",
+    "commit": "2ce99492d0af88e93524a28d3c9494a5770f71cf",
+    "workloadProfile": "internal/tokenprofile/profile.go"
+  },
+  "admission": {
+    "tmsValidatorRegistered": false,
+    "tmsNativeExecutionOperationRegistered": false,
+    "legalEntityAttestedByContextValidation": false,
+    "connectedAuthQualified": false,
+    "nativeProviderAdmission": false
+  }
+}
