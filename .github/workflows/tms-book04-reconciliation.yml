@@ -1,0 +1,35 @@
+name: TMS BOOK-04 Provider-Neutral Reconciliation Preflight
+on:
+  pull_request:
+    paths:
+      - "src/domain/carrier-booking-reconciliation.mjs"
+      - "test/carrier-booking-reconciliation.test.mjs"
+      - "docs/implementation/TMS-BOOK-04-provider-neutral-reconciliation.md"
+      - ".github/workflows/tms-book04-reconciliation.yml"
+  push:
+    branches: [main]
+    paths:
+      - "src/domain/carrier-booking-reconciliation.mjs"
+      - "test/carrier-booking-reconciliation.test.mjs"
+      - ".github/workflows/tms-book04-reconciliation.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  provider-independent-simulation:
+    name: BOOK-04 immutable carrier intent and signed synthetic readback
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout reviewed stacked TMS
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Node 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+      - name: Verify provider-neutral state and denial matrix
+        run: |
+          node --check src/domain/carrier-booking-reconciliation.mjs
+          node --test test/carrier-booking-reconciliation.test.mjs test/transport-plan.test.mjs
