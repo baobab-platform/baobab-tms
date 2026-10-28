@@ -1,0 +1,70 @@
+name: TMS HYB-04 Booking Lease Custody
+on:
+  pull_request:
+    paths:
+      - "db/migrations/0006_booking_operation_lease.sql"
+      - "src/repositories/canonical-booking-transaction.mjs"
+      - "test/canonical-booking-transaction.test.mjs"
+      - "scripts/hybrid/verify-booking-lease-pg17.py"
+      - "docs/implementation/HYB-04-booking-lease-custody.md"
+      - ".github/workflows/tms-hyb04-booking-lease.yml"
+  push:
+    branches: [main]
+    paths:
+      - "db/migrations/0006_booking_operation_lease.sql"
+      - "src/repositories/canonical-booking-transaction.mjs"
+      - "test/canonical-booking-transaction.test.mjs"
+      - "scripts/hybrid/verify-booking-lease-pg17.py"
+      - ".github/workflows/tms-hyb04-booking-lease.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  lease-cas:
+    name: Actual PG17 generation CAS and permanent authority hold
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout TMS stack
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Node 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+      - name: Prove no application transaction bypass
+        run: |
+          node --check src/repositories/canonical-booking-transaction.mjs
+          node --test test/canonical-booking-transaction.test.mjs
+      - name: Create ephemeral DB credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          file="$RUNNER_TEMP/tms-lease.env"
+          : > "$file"
+          for name in HYB_MYSQL_A_ROOT HYB_MYSQL_B_ROOT HYB_MYSQL_A_APP HYB_MYSQL_B_APP HYB_PG_A_ROOT HYB_PG_B_ROOT HYB_PG_A_APP HYB_PG_B_APP; do
+            printf '%s=%s\n' "$name" "$(openssl rand -hex 24)" >> "$file"
+          done
+          echo "TMS_LEASE_ENV=$file" >> "$GITHUB_ENV"
+      - name: Start private synthetic PG17
+        run: docker compose --env-file "$TMS_LEASE_ENV" -f ops/hybrid/docker-compose.data-plane.yml up -d --wait postgres_a
+      - name: Apply canonical migrations in strict order
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in db/migrations/0001_foundation.sql db/migrations/0002_native_worker_execution.sql db/migrations/0003_native_provisioning_custody.sql db/migrations/0004_transport_plan_and_movement.sql db/migrations/0005_carrier_booking_capacity.sql db/migrations/0006_booking_operation_lease.sql; do
+            docker compose --env-file "$TMS_LEASE_ENV" -f ops/hybrid/docker-compose.data-plane.yml exec -T postgres_a psql -U postgres -d opentms_a -v ON_ERROR_STOP=1 < "$f"
+          done
+      - name: Prove two-session lease CAS, revocation hold and tenant isolation
+        run: python3 scripts/hybrid/verify-booking-lease-pg17.py "$TMS_LEASE_ENV"
+      - name: Destroy DB and secret resources
+        if: always()
+        run: |
+          set +e
+          file="$RUNNER_TEMP/tms-lease.env"
+          if [ -f "$file" ]; then
+            docker compose --env-file "$file" -f ops/hybrid/docker-compose.data-plane.yml down -v --remove-orphans
+            rm -f "$file"
+          fi
