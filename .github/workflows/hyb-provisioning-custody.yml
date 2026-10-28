@@ -1,0 +1,75 @@
+name: TMS HYB-03 Provisioning Custody
+on:
+  pull_request:
+    paths:
+      - "src/governance/**"
+      - "db/migrations/0003_native_provisioning_custody.sql"
+      - "scripts/hybrid/verify-native-provisioning-ledger.py"
+      - "test/native-provisioning-plan.test.mjs"
+      - ".github/workflows/hyb-provisioning-custody.yml"
+  push:
+    branches: [main]
+    paths:
+      - "src/governance/**"
+      - "db/migrations/0003_native_provisioning_custody.sql"
+      - "scripts/hybrid/verify-native-provisioning-ledger.py"
+      - "test/native-provisioning-plan.test.mjs"
+      - ".github/workflows/hyb-provisioning-custody.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  tms-draft-and-pg17:
+    name: HYB-03 TMS draft + actual PG17 deny-all operation custody
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout TMS
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Node 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+      - name: Run adversarial no-activation lifecycle tests
+        run: |
+          node --check src/governance/native-provisioning-plan.mjs
+          node --test test/native-provisioning-plan.test.mjs
+      - name: Generate ephemeral database credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          file="$RUNNER_TEMP/hyb03-db.env"
+          : > "$file"
+          for name in HYB_MYSQL_A_ROOT HYB_MYSQL_B_ROOT HYB_MYSQL_A_APP HYB_MYSQL_B_APP HYB_PG_A_ROOT HYB_PG_B_ROOT HYB_PG_A_APP HYB_PG_B_APP; do
+            printf '%s=%s\n' "$name" "$(openssl rand -hex 24)" >> "$file"
+          done
+          echo "HYB03_ENV=$file" >> "$GITHUB_ENV"
+      - name: Launch isolated PostgreSQL 17
+        shell: bash
+        run: |
+          docker compose --env-file "$HYB03_ENV" \
+            -f ops/hybrid/docker-compose.data-plane.yml up -d --wait postgres_a
+      - name: Execute all canonical migrations against real PG17
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in db/migrations/0001_foundation.sql db/migrations/0002_native_worker_execution.sql db/migrations/0003_native_provisioning_custody.sql; do
+            docker compose --env-file "$HYB03_ENV" \
+              -f ops/hybrid/docker-compose.data-plane.yml exec -T postgres_a \
+              psql -U postgres -d opentms_a -v ON_ERROR_STOP=1 < "$file"
+          done
+      - name: Verify scoped provisioning ledger denies native runtime reads and writes
+        run: python3 scripts/hybrid/verify-native-provisioning-ledger.py "$HYB03_ENV"
+      - name: Destroy synthetic credentials, containers and volumes
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          file="$RUNNER_TEMP/hyb03-db.env"
+          if [ -f "$file" ]; then
+            docker compose --env-file "$file" -f ops/hybrid/docker-compose.data-plane.yml down -v --remove-orphans
+            rm -f "$file"
+          fi
