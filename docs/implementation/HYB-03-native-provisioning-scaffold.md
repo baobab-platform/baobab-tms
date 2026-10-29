@@ -1,5 +1,7 @@
 # HYB-03 — TMS-side native provisioning lifecycle scaffolding
 
+> **29 October 2026 audit reconciliation:** Shared #409 is accepted development design (merge `84c392105046406f190ee0fe87006ce3510760ef`), outside active contracts/registries; Shared #413 design acceptance is merged at `1fce3c36783310f33d79ba0996a996d00c4c5abe`. The Platform Owner authorised reviewed CI-green source merges. Historical proposal/no-merge statements below describe the original submission, not current governance. Runtime IAM/CP authority, carrier effects and provider activation remain HELD. These source/fixture artifacts cannot qualify an EA-XB operational case.
+
 **Authority:** Accepted ADR-TMS-0020 §§4–8 and ADR-TMS-0021 §§2–7, 15–17. **Status:** DRAFT CONTRACT + PG17 STORAGE ENGINEERING ONLY; HYB-03/04 integration and real native-provider admission **HELD**.
 
 ## Boundary and contract strategy
