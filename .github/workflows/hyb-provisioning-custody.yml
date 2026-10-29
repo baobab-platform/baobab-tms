@@ -16,12 +16,14 @@ on:
       - "test/native-provisioning-plan.test.mjs"
       - ".github/workflows/hyb-provisioning-custody.yml"
   workflow_dispatch:
+env:
+  COMPOSE_PROJECT_NAME: tms-audit-${{ github.run_id }}-${{ github.run_attempt }}
 permissions:
   contents: read
 jobs:
   tms-draft-and-pg17:
     name: HYB-03 TMS draft + actual PG17 deny-all operation custody
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 25
     steps:
       - name: Checkout TMS
@@ -67,9 +69,13 @@ jobs:
         if: always()
         shell: bash
         run: |
-          set +e
+          set -euo pipefail
           file="$RUNNER_TEMP/hyb03-db.env"
+          trap 'rm -f "$file"' EXIT
           if [ -f "$file" ]; then
             docker compose --env-file "$file" -f ops/hybrid/docker-compose.data-plane.yml down -v --remove-orphans
+            test -z "$(docker ps -aq --filter label=com.docker.compose.project=$COMPOSE_PROJECT_NAME)"
+            test -z "$(docker volume ls -q --filter label=com.docker.compose.project=$COMPOSE_PROJECT_NAME)"
+            test -z "$(docker network ls -q --filter label=com.docker.compose.project=$COMPOSE_PROJECT_NAME)"
             rm -f "$file"
           fi
