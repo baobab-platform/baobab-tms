@@ -25,7 +25,7 @@ const operation=plan=>({
  planDigest:plan.planDigest,cpOperationId:"operation-123",
  cpAuthorizationEvidenceRef:"cp-readback-123",
  idempotencyKey:"fixture1",leaseGeneration:2,
- deadlineAt:"2026-10-28T09:05:00Z"
+ deadlineAt:"2026-10-28T09:00:05Z"
 });
 test("Fleetbase dedicated MySQL, Redis, socket lifecycle is deterministic, never approved",()=>{
  const a=draftNativeProvisioningPlan(desired);
