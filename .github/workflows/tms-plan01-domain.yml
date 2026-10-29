@@ -1,0 +1,35 @@
+name: TMS PLAN-01 Canonical Transport Domain
+on:
+  pull_request:
+    paths:
+      - "src/domain/transport-plan.mjs"
+      - "test/transport-plan.test.mjs"
+      - "docs/implementation/TMS-PLAN-01-domain-scaffold.md"
+      - ".github/workflows/tms-plan01-domain.yml"
+  push:
+    branches: [main]
+    paths:
+      - "src/domain/transport-plan.mjs"
+      - "test/transport-plan.test.mjs"
+      - ".github/workflows/tms-plan01-domain.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  canonical-plan:
+    name: TMS-PLAN-01 domain invariants and no native effects
+    runs-on: ubuntu-26.04
+    timeout-minutes: 8
+    steps:
+      - name: Checkout TMS
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Node 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+      - name: Validate ESM and canonical shipment/plan/movement invariants
+        run: |
+          node --check src/domain/transport-plan.mjs
+          node --test test/shipment.test.mjs test/transport-plan.test.mjs
