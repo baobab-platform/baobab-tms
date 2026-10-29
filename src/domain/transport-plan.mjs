@@ -53,6 +53,15 @@ function moment(value,name){
  if(value===undefined||value===null)return null;
  if(typeof value!=="string"||!rfc3339.test(value)||!Number.isFinite(Date.parse(value)))
   throw new TypeError(name+" must be an RFC3339 instant with explicit offset");
+ const [date,time]=value.split("T");
+ const [year,month,day]=date.split("-").map(Number);
+ const [hour,minute,second]=time.slice(0,8).split(":").map(Number);
+ const leap=year%4===0&&(year%100!==0||year%400===0);
+ const days=[31,leap?29:28,31,30,31,30,31,31,30,31,30,31];
+ const offset=value.endsWith("Z")?null:value.slice(-6);
+ if(month<1||month>12||day<1||day>days[month-1]||hour>23||minute>59||second>59||
+    (offset&&(Number(offset.slice(1,3))>23||Number(offset.slice(4,6))>59)))
+  throw new TypeError(name+" contains an invalid calendar instant");
  return {original:value,utc:new Date(value).toISOString()};
 }
 const utcMillis=v=>v?Date.parse(v.utc):null;
@@ -165,11 +174,14 @@ function callsOf(items){
    plannedArrival:arrival,plannedDeparture:departure
   };
  });
- for(let i=1;i<calls.length;i++){
-  const prev=calls[i-1].plannedDeparture;
-  const next=calls[i].plannedArrival;
-  if(prev&&next&&utcMillis(next)<utcMillis(prev))
-   throw new Error("REVERSED_MOVEMENT_CHRONOLOGY");
+ let latest=null;
+ for(const call of calls){
+  for(const instant of [call.plannedArrival,call.plannedDeparture]){
+   if(!instant)continue;
+   const current=utcMillis(instant);
+   if(latest!==null&&current<latest)throw new Error("REVERSED_MOVEMENT_CHRONOLOGY");
+   latest=current;
+  }
  }
  return calls;
 }
@@ -180,7 +192,7 @@ function legsOf(items,calls,mode){
  const c=new Map(calls.map(x=>[x.callId,x]));
  return items.map(x=>{
   const a=c.get(x.originCallId),b=c.get(x.destinationCallId);
-  if(!a||!b||b.sequence<=a.sequence||b.sequence!==a.sequence+1)
+  if(!a||!b||b.sequence!==a.sequence+1||x.sequence!==a.sequence)
    throw new Error("UNRELATED_OR_REVERSED_CALL_LEG");
   if(x.mode!==mode)throw new Error("MOVEMENT_LEG_MODE_MISMATCH");
   return {

@@ -157,3 +157,25 @@ test("no implicit tenant, source requirement or source reference may be supplied
  assert.throws(()=>createTransportPlanDraft({planId:"one",context:scope,sources:[...requirement,...requirement],
    editorReference:"actor",causationReference:"demand"}),/DUPLICATE/);
 });
+
+test("partial and untimed calls cannot hide reversed known timestamps",()=>{
+ const timed=(id,sequence,at)=>({callId:id,sequence,facilityReference:id,
+  timeZone:"UTC",plannedArrival:at});
+ for(const c of [
+  [timed("a",1,"2026-11-03T12:00:00Z"),timed("b",2,"2026-11-02T12:00:00Z")],
+  [timed("a",1,"2026-11-03T12:00:00Z"),{callId:"gap",sequence:2,facilityReference:"gap"},timed("b",3,"2026-11-02T12:00:00Z")]
+ ])assert.throws(()=>movement(scope,{calls:c,legs:[]}),/REVERSED_MOVEMENT_CHRONOLOGY/);
+});
+test("legs progress exactly through ordered calls without duplicate pairs",()=>{
+ const c=[...calls,{callId:"call-c",sequence:3,facilityReference:"C"}];
+ assert.throws(()=>movement(scope,{calls:c,legs:[
+  {...legs[0],originCallId:"call-b",destinationCallId:"call-c"},
+  {...legs[0],legId:"leg-b",sequence:2}
+ ]}),/UNRELATED_OR_REVERSED_CALL_LEG/);
+ assert.throws(()=>movement(scope,{calls:c,legs:[legs[0],{...legs[0],legId:"duplicate",sequence:2}]}),/UNRELATED_OR_REVERSED_CALL_LEG/);
+});
+test("calendar dates reject normalisation, including century leap rules",()=>{
+ for(const at of ["2026-02-30T12:00:00Z","2100-02-29T12:00:00Z","2026-04-31T12:00:00+02:00","2026-11-02T24:00:00Z"])
+  assert.throws(()=>movement(scope,{calls:[{...calls[0],plannedDeparture:at}],legs:[]}),TypeError);
+ assert.equal(movement(scope,{calls:[{...calls[0],plannedDeparture:"2000-02-29T12:00:00Z"}],legs:[]}).calls[0].plannedDeparture.utc,"2000-02-29T12:00:00.000Z");
+});

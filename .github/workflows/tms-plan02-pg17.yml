@@ -13,12 +13,14 @@ on:
       - "scripts/hybrid/verify-transport-plan-pg17.py"
       - ".github/workflows/tms-plan02-pg17.yml"
   workflow_dispatch:
+env:
+  COMPOSE_PROJECT_NAME: tms-audit-${{ github.run_id }}-${{ github.run_attempt }}
 permissions:
   contents: read
 jobs:
   actual-pg17-cas:
     name: TMS-PLAN-02 actual PG17 immutable revisions and concurrent CAS
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 25
     steps:
       - name: Checkout stacked TMS
@@ -67,8 +69,9 @@ jobs:
         if: always()
         shell: bash
         run: |
-          set +e
+          set -euo pipefail
           file="$RUNNER_TEMP/tms-plan-pg17.env"
+          trap 'rm -f "$file"' EXIT
           if [ -f "$file" ]; then
             docker compose --env-file "$file" \
               -f ops/hybrid/docker-compose.data-plane.yml down -v --remove-orphans
