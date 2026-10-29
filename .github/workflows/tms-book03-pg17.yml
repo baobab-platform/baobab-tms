@@ -1,0 +1,75 @@
+name: TMS BOOK-03 PG17 Capacity and Booking Custody
+on:
+  pull_request:
+    paths:
+      - "db/migrations/0005_carrier_booking_capacity.sql"
+      - "scripts/hybrid/verify-carrier-capacity-pg17.py"
+      - "docs/implementation/TMS-BOOK-03-pg17-custody.md"
+      - ".github/workflows/tms-book03-pg17.yml"
+  push:
+    branches: [main]
+    paths:
+      - "db/migrations/0005_carrier_booking_capacity.sql"
+      - "scripts/hybrid/verify-carrier-capacity-pg17.py"
+      - ".github/workflows/tms-book03-pg17.yml"
+  workflow_dispatch:
+env:
+  COMPOSE_PROJECT_NAME: tms-audit-${{ github.run_id }}-${{ github.run_attempt }}
+permissions:
+  contents: read
+jobs:
+  native-independent-pg17:
+    name: TMS-BOOK-03 actual PG17 idempotent carrier booking and capacity race
+    runs-on: ubuntu-26.04
+    timeout-minutes: 25
+    steps:
+      - name: Checkout reviewed TMS stack
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Generate ephemeral database credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          file="$RUNNER_TEMP/tms-book03.env"
+          : > "$file"
+          for name in HYB_MYSQL_A_ROOT HYB_MYSQL_B_ROOT HYB_MYSQL_A_APP HYB_MYSQL_B_APP HYB_PG_A_ROOT HYB_PG_B_ROOT HYB_PG_A_APP HYB_PG_B_APP; do
+            printf '%s=%s\n' "$name" "$(openssl rand -hex 24)" >> "$file"
+          done
+          echo "TMS_BOOK_ENV=$file" >> "$GITHUB_ENV"
+      - name: Start isolated PostgreSQL17
+        run: |
+          docker compose --env-file "$TMS_BOOK_ENV" -f ops/hybrid/docker-compose.data-plane.yml up -d --wait postgres_a
+      - name: Apply complete first-party migrations
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in \
+            db/migrations/0001_foundation.sql \
+            db/migrations/0002_native_worker_execution.sql \
+            db/migrations/0003_native_provisioning_custody.sql \
+            db/migrations/0004_transport_plan_and_movement.sql \
+            db/migrations/0005_carrier_booking_capacity.sql; do
+            docker compose --env-file "$TMS_BOOK_ENV" \
+              -f ops/hybrid/docker-compose.data-plane.yml exec -T postgres_a \
+              psql -U postgres -d opentms_a -v ON_ERROR_STOP=1 < "$file"
+          done
+      - name: Actual concurrent booking and capacity negatives
+        run: python3 scripts/hybrid/verify-carrier-capacity-pg17.py "$TMS_BOOK_ENV"
+      - name: Verify no direct native provider effects were exercised
+        run: |
+          echo "TMS first-party custody only; provider network, IAM issuance and CP operation admission remain HELD."
+      - name: Destroy ephemeral DB volumes and secrets
+        if: always()
+        run: |
+          set -euo pipefail
+          file="$RUNNER_TEMP/tms-book03.env"
+          trap 'rm -f "$file"' EXIT
+          if [ -f "$file" ]; then
+            docker compose --env-file "$file" -f ops/hybrid/docker-compose.data-plane.yml down -v --remove-orphans
+            test -z "$(docker ps -aq --filter label=com.docker.compose.project=$COMPOSE_PROJECT_NAME)"
+            test -z "$(docker volume ls -q --filter label=com.docker.compose.project=$COMPOSE_PROJECT_NAME)"
+            test -z "$(docker network ls -q --filter label=com.docker.compose.project=$COMPOSE_PROJECT_NAME)"
+            rm -f "$file"
+          fi
