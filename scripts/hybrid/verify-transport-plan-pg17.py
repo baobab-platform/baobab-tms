@@ -150,6 +150,42 @@ assert last("SELECT current_revision FROM tms.transport_plan "
 run("""UPDATE tms.transport_plan SET current_revision=99
  WHERE tenant_id='tn_alpha' AND plan_id='plan-a'""", True)
 
+
+# Review regressions: SQL NULL must not bypass linked history or provenance.
+run("""INSERT INTO tms.transport_plan_revision
+ (tenant_id,plan_id,revision,previous_revision,editor_reference,causation_reference,reason)
+ VALUES ('tn_alpha','plan-a',99,NULL,'actor-a','bad','orphan')""", True)
+for missing in ("unit", "source", "policy"):
+    values = {"unit": "'km'", "source": "'measured-a'", "policy": "'v1'"}
+    values[missing] = "NULL"
+    run(f"""INSERT INTO tms.transport_route
+     (tenant_id,plan_id,revision,route_id,alternative_estimate_value,
+      alternative_estimate_unit,alternative_estimate_source,alternative_estimated_at,
+      alternative_estimate_confidence,alternative_policy_version)
+     VALUES ('tn_alpha','plan-a',2,'bad-{missing}',1,{values['unit']},
+       {values['source']},now(),'HIGH',{values['policy']})""", True)
+run("UPDATE tms.transport_call SET sequence=3 WHERE movement_id='movement-a' AND call_id='call-2'", True)
+run("UPDATE tms.transport_movement SET repositioning_only=true WHERE movement_id='movement-a'", True)
+run("""UPDATE tms.transport_call SET planned_arrival_at='2026-11-01 12:00+00',
+ planned_arrival_original='2026-11-01T12:00:00Z'
+ WHERE movement_id='movement-a' AND call_id='call-2'""", True)
+
+# Both candidate schedule writes are valid against the original state, but
+# together they reverse chronology. Parent custody must admit only one.
+def schedule_writer(sql):
+    result = subprocess.run(base + ["-c", sql], capture_output=True, text=True, timeout=45)
+    return result.returncode == 0
+with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+    results = list(pool.map(schedule_writer, [
+      """UPDATE tms.transport_call SET planned_departure_at='2026-11-03 12:00+02',
+       planned_departure_original='2026-11-03T12:00:00+02:00'
+       WHERE movement_id='movement-a' AND call_id='call-1'""",
+      """UPDATE tms.transport_call SET planned_arrival_at='2026-11-02 12:00+02',
+       planned_arrival_original='2026-11-02T12:00:00+02:00'
+       WHERE movement_id='movement-a' AND call_id='call-2'"""
+    ]))
+assert results.count(True) == 1, "Concurrent chronology writers must not both win"
+
 print("PASS: TMS-PLAN-02 real PG17 domain migrations, immutable snapshots, "
       "same-movement leg integrity, scoped consignment FK, forced no-allow RLS, "
       "one-winner concurrent revision CAS and deferred current-head integrity")

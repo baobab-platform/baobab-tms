@@ -104,6 +104,21 @@ assert last("SELECT held_quantity FROM tms.carrier_capacity_pool WHERE pool_id='
 assert last(f"SELECT tms.release_canonical_capacity('tn_synthetica','pool-a','{holder}')")=="RELEASED"
 assert last(f"SELECT tms.release_canonical_capacity('tn_synthetica','pool-a','{holder}')")=="RELEASED"
 assert last("SELECT held_quantity FROM tms.carrier_capacity_pool WHERE pool_id='pool-a'")=="0.000000000"
+
+# Same tenant/legal/market with a different carrier must still deny.
+check("""INSERT INTO tms.carrier_capacity_pool
+ (tenant_id,pool_id,operating_organisation_id,legal_entity_id,market_id,
+ carrier_organisation_reference,service_reference,capacity_unit,capacity_limit,valid_from,valid_until)
+ VALUES('tn_synthetica','pool-wrong-carrier','org-a','legal-a','market-za',
+ 'carrier-b','road-b','places',1,now()-interval '1 day',now()+interval '1 day')""")
+check("SELECT tms.hold_canonical_capacity('tn_synthetica','pool-wrong-carrier','booking-a','bad-carrier',1,'bad-carrier')",True)
+for value in ("0.1234567894", "'NaN'::numeric", "'Infinity'::numeric", "10000000000000000000"):
+    check(f"SELECT tms.hold_canonical_capacity('tn_synthetica','pool-a','booking-a','bad-precision',{value},'bad-precision')",True)
+assert last("SELECT held_quantity FROM tms.carrier_capacity_pool WHERE pool_id='pool-a'")=="0.000000000"
+for _ in range(2):
+    assert last("SELECT tms.hold_canonical_capacity('tn_synthetica','pool-a','booking-a','fraction',0.123456789,'fraction')")=="HELD"
+assert last("SELECT held_quantity FROM tms.carrier_capacity_pool WHERE pool_id='pool-a'")=="0.123456789"
+assert last("SELECT tms.release_canonical_capacity('tn_synthetica','pool-a','fraction')")=="RELEASED"
 # Runtime has ordinary table permissions, yet always receives zero rows and
 # cannot call a privileged hold or tamper with booking state.
 check("""CREATE ROLE tms_booking_runtime_probe NOLOGIN;

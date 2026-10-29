@@ -1,5 +1,7 @@
 # HYB-04 — Actual Shared/CP/IAM contract reconciliation
 
+> **29 October 2026 audit reconciliation:** Shared #409 is accepted development design (merge `84c392105046406f190ee0fe87006ce3510760ef`), outside active contracts/registries; Shared #413 design acceptance is merged at `1fce3c36783310f33d79ba0996a996d00c4c5abe`. The Platform Owner authorised reviewed CI-green source merges. Historical proposal/no-merge statements below describe the original submission, not current governance. Runtime IAM/CP authority, carrier effects and provider activation remain HELD. These source/fixture artifacts cannot qualify an EA-XB operational case.
+
 **State:** immutable-source contract evidence only; native execution and activation remain HELD.
 **Review lineage:** this PR stacks onto PR #20, which stacks onto PR #19. Do not merge any PR without explicit owner authorisation.
 
