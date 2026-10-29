@@ -107,7 +107,7 @@ export function inspectFencedOperation(plan, operation, at=new Date()) {
      typeof operation.deadlineAt!=="string"||
      !Number.isFinite(Date.parse(operation.deadlineAt))||
      Date.parse(operation.deadlineAt)<=at.getTime()||
-     Date.parse(operation.deadlineAt)>at.getTime()+30*60_000)
+     Date.parse(operation.deadlineAt)>at.getTime()+5000)
     return Object.freeze({status:"BLOCKED",reason:"STALE_OR_MISMATCHED_CP_FENCE"});
   return Object.freeze({
     status:"STRUCTURALLY_VALID_NOT_AUTHORISED",

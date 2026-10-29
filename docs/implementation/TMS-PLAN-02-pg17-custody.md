@@ -1,5 +1,7 @@
 # TMS-PLAN-02 — Canonical PostgreSQL 17 planning custody
 
+> **29 October 2026 audit reconciliation:** Shared #409 is accepted development design (merge `84c392105046406f190ee0fe87006ce3510760ef`), outside active contracts/registries; Shared #413 design acceptance is merged at `1fce3c36783310f33d79ba0996a996d00c4c5abe`. The Platform Owner authorised reviewed CI-green source merges. Historical proposal/no-merge statements below describe the original submission, not current governance. Runtime IAM/CP authority, carrier effects and provider activation remain HELD. These source/fixture artifacts cannot qualify an EA-XB operational case.
+
 **Status:** first-party schema/invariant acceptance engineering; authenticated command/persistence integration and protected TMS-PLAN-02 completion HELD.
 
 **Governance:** Accepted ADR-TMS-0001/0002/0003/0010/0011/0012 as amended by ADR-TMS-0020/0021; Shared EA v2.3/EA-DEV and non-conflicting TMS-TECH-01. This is a child of TMS-PLAN-01 PR #22, which is stacked on #21, #20 and #19. ALL PRs must remain unmerged until the user expressly authorises a merge.

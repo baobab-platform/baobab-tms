@@ -8,7 +8,7 @@ const expectedScope={
   marketId:"market-za",environment:"development",nativeProviderKind:"FLEETBASE_FLEETOPS"
 };
 const request={
-  contextId,operation:"native.dispatch",bindingId:"bind-a",
+  contextId,operation:"tms.movement.dispatch",bindingId:"bind-a",
   planDigest:"sha256:"+"b".repeat(64),
   cpCapabilityBindingRevision:"rev-3",
   provisioningGeneration:2,expectedScope
@@ -18,11 +18,11 @@ function fixture({identity={},current={},denyIdentity=false,denyCp=false}={}) {
   const calls={iam:0,cp:0};
   const verifyIamToken=async(v,opts)=>{
     calls.iam++;
-    assert.equal(v,token);assert.equal(opts.audience,"baobab-tms-internal");
+    assert.equal(v,token);assert.equal(opts.audience,"baobab-tms");
     if(denyIdentity)throw Error("unavailable");
     return {source:"IAM_VERIFIED",active:true,actorType:"workload",
       subject:"synthetic-sub",issuer:"https://synthetic-issuer.example",
-      audience:"baobab-tms-internal",tokenId:"id1",
+      audience:"baobab-tms",tokenId:"id1",
       notBefore:now()-1000,expiresAt:now()+4000,...identity};
   };
   const redeemCpContext=async input=>{
@@ -39,7 +39,7 @@ function fixture({identity={},current={},denyIdentity=false,denyCp=false}={}) {
   };
   const port=createHeldNativeExecutionAuthority({
     verifyIamToken,redeemCpContext,
-    expectedAudience:"baobab-tms-internal",
+    expectedAudience:"baobab-tms",
     acceptedIssuers:["https://synthetic-issuer.example"],now
   });
   return {port,calls};
@@ -109,4 +109,16 @@ test("every fresh assessment independently rechecks IAM and CP; no cached ALLOW"
  await port.assess({token,request});
  await port.assess({token,request});
  assert.deepEqual(calls,{iam:2,cp:2});
+});
+
+test("expiry is rechecked after asynchronous CP readback",async()=>{
+ let time=100000;
+ const p=createHeldNativeExecutionAuthority({
+  expectedAudience:"baobab-tms",acceptedIssuers:["https://synthetic-issuer.example"],now:()=>time,
+  verifyIamToken:async()=>({source:"IAM_VERIFIED",active:true,actorType:"workload",
+   subject:"a",issuer:"https://synthetic-issuer.example",audience:"baobab-tms",tokenId:"id",
+   notBefore:99000,expiresAt:104000}),
+  redeemCpContext:async()=>{time=105000;return {source:"CP_READBACK",decision:"ALLOW"}}
+ });
+ await assert.rejects(p.assess({token,request}),/IAM_EXPIRED_DURING_CP_READBACK/);
 });

@@ -26,8 +26,8 @@ export class CarrierReconciliationDenied extends Error {
 }
 export function createBookingIntentDraft(input){
  required(input&&typeof input==="object"&&!Array.isArray(input),"INVALID_BOOKING_INPUT");
- required(immutableFields.every(k=>raw(input[k])||
-   (k==="planRevision"&&Number.isSafeInteger(input[k])&&input[k]>0)),"MISSING_CANONICAL_BOOKING_SCOPE");
+ required(immutableFields.every(k=>k==="planRevision"
+   ? Number.isSafeInteger(input[k])&&input[k]>0 : raw(input[k])),"MISSING_CANONICAL_BOOKING_SCOPE");
  required(["OPEN_TMS","FLEETBASE_FLEETOPS"].includes(input.providerKind),"UNKNOWN_PROVIDER");
  const scope=Object.fromEntries(immutableFields.map(k=>[k,input[k]]));
  const digest=createHash("sha256").update(JSON.stringify(scope)).digest("hex");

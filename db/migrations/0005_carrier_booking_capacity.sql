@@ -152,10 +152,22 @@ CREATE OR REPLACE FUNCTION tms.hold_canonical_capacity(
 RETURNS text LANGUAGE plpgsql SECURITY INVOKER AS $$
 DECLARE poolrow tms.carrier_capacity_pool%ROWTYPE;
         existing tms.carrier_capacity_hold%ROWTYPE;
+        booking tms.carrier_booking_intent%ROWTYPE;
 BEGIN
  SELECT * INTO poolrow FROM tms.carrier_capacity_pool
  WHERE tenant_id=p_tenant AND pool_id=p_pool FOR UPDATE;
  IF NOT FOUND THEN RAISE EXCEPTION 'CAPACITY_POOL_UNAVAILABLE'; END IF;
+ IF p_quantity IS NULL OR p_quantity::text IN ('NaN','Infinity','-Infinity') OR
+    p_quantity<=0 OR p_quantity>=10000000000000000000 OR
+    p_quantity<>trunc(p_quantity,9) THEN
+  RAISE EXCEPTION 'INVALID_EXACT_CAPACITY_QUANTITY';
+ END IF;
+ SELECT * INTO booking FROM tms.carrier_booking_intent
+ WHERE tenant_id=p_tenant AND booking_id=p_booking FOR UPDATE;
+ IF NOT FOUND OR booking.carrier_organisation_reference IS DISTINCT FROM
+    poolrow.carrier_organisation_reference THEN
+  RAISE EXCEPTION 'CAPACITY_CARRIER_MISMATCH';
+ END IF;
  SELECT * INTO existing FROM tms.carrier_capacity_hold
  WHERE tenant_id=p_tenant AND pool_id=p_pool AND idempotency_key=p_key;
  IF FOUND THEN
@@ -163,7 +175,7 @@ BEGIN
       existing.quantity=p_quantity THEN RETURN existing.state; END IF;
    RAISE EXCEPTION 'CAPACITY_IDEMPOTENCY_CONFLICT';
  END IF;
- IF p_quantity IS NULL OR p_quantity<=0 OR
+ IF clock_timestamp()<poolrow.valid_from OR clock_timestamp()>=poolrow.valid_until OR
     poolrow.held_quantity+p_quantity>poolrow.capacity_limit THEN
    RAISE EXCEPTION 'CAPACITY_UNAVAILABLE';
  END IF;

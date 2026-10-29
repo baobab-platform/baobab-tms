@@ -18,7 +18,7 @@ permissions:
 jobs:
   canonical-plan:
     name: TMS-PLAN-01 domain invariants and no native effects
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 8
     steps:
       - name: Checkout TMS
