@@ -1,0 +1,66 @@
+name: TMS HYB-04 Accepted Source Contract Pin
+on:
+  pull_request:
+    paths:
+      - "config/contracts/hyb-04-source-pin.json"
+      - "src/security/cp-context-validation-contract.mjs"
+      - "test/cp-context-validation-contract.test.mjs"
+      - "scripts/contracts/verify-hyb04-source-pin.mjs"
+      - "docs/implementation/HYB-04-contract-reconciliation.md"
+      - ".github/workflows/hyb-04-shared-cp-iam-contracts.yml"
+  push:
+    branches: [main]
+    paths:
+      - "config/contracts/hyb-04-source-pin.json"
+      - "src/security/cp-context-validation-contract.mjs"
+      - "test/cp-context-validation-contract.test.mjs"
+      - "scripts/contracts/verify-hyb04-source-pin.mjs"
+      - ".github/workflows/hyb-04-shared-cp-iam-contracts.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  exact-shared-authority:
+    name: HYB-04 exact Shared CP IAM source contract and negative proof
+    runs-on: ubuntu-26.04
+    timeout-minutes: 12
+    steps:
+      - name: Checkout TMS stacked review head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Checkout accepted Shared commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: baobab-platform/shared
+          ref: ab7a473a1f69784f115ad353e36383faf9b95965
+          path: .sources/shared
+          persist-credentials: false
+      - name: Checkout CP implementation commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: baobab-platform/baobab-cp
+          ref: 6b0ec5fa70b4ccc2b7ab9ff0cd8829a080d355ff
+          path: .sources/cp
+          persist-credentials: false
+      - name: Checkout IAM implementation commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: baobab-platform/baobab-iam
+          ref: 2ce99492d0af88e93524a28d3c9494a5770f71cf
+          path: .sources/iam
+          persist-credentials: false
+      - name: Node 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+      - name: Assert immutable Shared CP IAM source contract shapes and holds
+        run: node scripts/contracts/verify-hyb04-source-pin.mjs .sources
+      - name: Test exact CP context validation and denial semantics
+        run: |
+          node --check src/security/cp-context-validation-contract.mjs
+          node --test test/cp-context-validation-contract.test.mjs
+          node --test test/iam-cp-native-execution-authority.test.mjs
+      - name: Reject any false native provider admission
+        run: |
+          node -e "const c=require('./config/contracts/hyb-04-source-pin.json');if(c.admission.connectedAuthQualified!==false||c.admission.nativeProviderAdmission!==false||c.admission.tmsValidatorRegistered!==false)process.exit(1)"
