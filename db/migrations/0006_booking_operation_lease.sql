@@ -30,12 +30,12 @@ RETURNS text LANGUAGE plpgsql SECURITY INVOKER AS $$
 DECLARE booking tms.carrier_booking_intent%ROWTYPE;
         lease tms.booking_operation_lease%ROWTYPE;
 BEGIN
- IF p_operation NOT IN ('BOOKING_SUBMIT','BOOKING_RECONCILE',
+ IF p_operation IS NULL OR p_operation NOT IN ('BOOKING_SUBMIT','BOOKING_RECONCILE',
    'CAPACITY_HOLD','CAPACITY_RELEASE','BOOKING_CANCEL') OR
    p_generation IS NULL OR p_generation<=0 OR
    p_owner IS NULL OR length(p_owner)=0 OR
-   p_expires_at IS NULL OR p_expires_at<=now() OR
-   p_expires_at>now()+interval '5 minutes' THEN
+   p_expires_at IS NULL OR p_expires_at<=clock_timestamp() OR
+   p_expires_at>clock_timestamp()+interval '5 minutes' THEN
    RAISE EXCEPTION 'INVALID_BOUNDED_LEASE';
  END IF;
  -- This is serialization, not authentication: caller with DB privileges
@@ -53,8 +53,14 @@ BEGIN
  SELECT * INTO lease FROM tms.booking_operation_lease
   WHERE tenant_id=p_tenant AND booking_id=p_booking AND operation=p_operation
   FOR UPDATE;
+ -- now() is transaction-start time: deadlines must be rechecked after
+ -- both row locks, including a caller transaction that waited on custody.
+ IF p_expires_at<=clock_timestamp() OR
+    p_expires_at>clock_timestamp()+interval '5 minutes' THEN
+  RAISE EXCEPTION 'INVALID_BOUNDED_LEASE';
+ END IF;
  IF FOUND THEN
-   IF lease.lease_expires_at>now() THEN
+   IF lease.lease_expires_at>clock_timestamp() THEN
      RAISE EXCEPTION 'OPERATION_LEASE_BUSY';
    END IF;
    IF p_generation<=lease.lease_generation THEN
@@ -62,7 +68,7 @@ BEGIN
    END IF;
    UPDATE tms.booking_operation_lease
     SET lease_generation=p_generation,lease_owner_reference=p_owner,
-        lease_expires_at=p_expires_at,claimed_at=now(),updated_at=now()
+        lease_expires_at=p_expires_at,claimed_at=clock_timestamp(),updated_at=clock_timestamp()
     WHERE tenant_id=p_tenant AND booking_id=p_booking AND operation=p_operation;
  ELSE
    INSERT INTO tms.booking_operation_lease

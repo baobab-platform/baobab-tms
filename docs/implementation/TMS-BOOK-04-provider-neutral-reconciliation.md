@@ -1,5 +1,7 @@
 # TMS-BOOK-04 — Provider-neutral carrier readback and unknown outcomes
 
+> **29 October 2026 audit reconciliation:** Shared #409 is accepted development design (merge `84c392105046406f190ee0fe87006ce3510760ef`), outside active contracts/registries; Shared #413 design acceptance is merged at `1fce3c36783310f33d79ba0996a996d00c4c5abe`. The Platform Owner authorised reviewed CI-green source merges. Historical proposal/no-merge statements below describe the original submission, not current governance. Runtime IAM/CP authority, carrier effects and provider activation remain HELD. These source/fixture artifacts cannot qualify an EA-XB operational case.
+
 **Status:** synthetic pure-domain fixture; native side effects HELD. Parent TMS #24 is stacked on #23 → #22 → #21 → #20 → #19. All PRs remain open until owner explicitly authorises a merge.
 
 **Normative scope:** ADR-TMS-0004 Carrier/Booking/Capacity; ADR-TMS-0011 idempotency, callback trust and at-least-once semantics; ADR-TMS-0012 temporal and reconciliation history; ADR-TMS-0013 credentials and webhook replay; ADR-TMS-0020/0021 provider adapters. The technology proposal TMS-TECH-01 supplies only non-conflicting guidance.

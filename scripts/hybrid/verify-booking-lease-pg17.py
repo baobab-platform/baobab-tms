@@ -52,6 +52,15 @@ assert last(claim(generation=2,owner="recovered"))=="UNVERIFIED_NOT_EXECUTABLE"
 assert last("SELECT lease_generation FROM tms.booking_operation_lease")=="2"
 query("""UPDATE tms.booking_operation_lease SET authority_status='VERIFIED'
  WHERE booking_id='book-a'""",True)
+
+# Transaction-start now() is deliberately stale here. Wall-clock expiry is
+# checked even in an explicit long-running caller transaction.
+query("BEGIN; SELECT pg_sleep(0.2); "+claim(generation=3,expires=0.1)+"; COMMIT",True)
+# Expiry of an existing lease during the same explicit transaction permits
+# recovery; now() would incorrectly report it as still busy.
+query("UPDATE tms.booking_operation_lease SET lease_expires_at=clock_timestamp()+interval '0.1 second' WHERE booking_id='book-a'")
+assert "UNVERIFIED_NOT_EXECUTABLE" in query("BEGIN; SELECT pg_sleep(0.2); "+claim(generation=3)+"; COMMIT")
+assert last("SELECT lease_generation FROM tms.booking_operation_lease")=="3"
 query("""CREATE ROLE tms_lease_runtime_probe NOLOGIN;
  GRANT USAGE ON SCHEMA tms TO tms_lease_runtime_probe;
  GRANT SELECT,INSERT,UPDATE ON tms.booking_operation_lease TO tms_lease_runtime_probe""")

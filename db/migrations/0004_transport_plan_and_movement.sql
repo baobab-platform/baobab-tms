@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS tms.transport_plan_revision (
     REFERENCES tms.transport_plan_revision(tenant_id,plan_id,revision)
     ON DELETE RESTRICT,
   CHECK ((revision = 1 AND previous_revision IS NULL) OR
-         (revision > 1 AND previous_revision = revision-1))
+         (revision > 1 AND previous_revision IS NOT NULL AND previous_revision = revision-1))
 );
 -- The parent plan and the referenced revision are inserted atomically.
 -- Deferred FK avoids falsely accepting a plan head without an actual revision.
@@ -79,6 +79,8 @@ CREATE TABLE IF NOT EXISTS tms.transport_route (
      alternative_estimate_confidence IS NULL AND alternative_policy_version IS NULL)
     OR
     (alternative_estimate_value IS NOT NULL AND
+     alternative_estimate_unit IS NOT NULL AND alternative_estimate_source IS NOT NULL AND
+     alternative_policy_version IS NOT NULL AND
      length(alternative_estimate_unit) > 0 AND length(alternative_estimate_source) > 0 AND
      alternative_estimated_at IS NOT NULL AND alternative_estimate_confidence IS NOT NULL AND
      length(alternative_policy_version) > 0))
@@ -169,12 +171,14 @@ CREATE OR REPLACE FUNCTION tms.reject_unrelated_movement_leg()
 RETURNS trigger LANGUAGE plpgsql AS $$
 DECLARE origin_number integer; destination_number integer;
 BEGIN
+ PERFORM 1 FROM tms.transport_movement WHERE tenant_id=NEW.tenant_id
+  AND movement_id=NEW.movement_id FOR UPDATE;
  SELECT sequence INTO origin_number FROM tms.transport_call
  WHERE tenant_id=NEW.tenant_id AND movement_id=NEW.movement_id AND call_id=NEW.origin_call_id;
  SELECT sequence INTO destination_number FROM tms.transport_call
  WHERE tenant_id=NEW.tenant_id AND movement_id=NEW.movement_id AND call_id=NEW.destination_call_id;
  IF origin_number IS NULL OR destination_number IS NULL OR
-    destination_number <> origin_number+1 THEN
+    destination_number <> origin_number+1 OR NEW.sequence <> origin_number THEN
    RAISE EXCEPTION 'INVALID_MOVEMENT_LEG_ORDER';
  END IF;
  RETURN NEW;
@@ -203,7 +207,7 @@ CREATE OR REPLACE FUNCTION tms.reject_repositioning_allocation()
 RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
  IF (SELECT repositioning_only FROM tms.transport_movement
-     WHERE tenant_id=NEW.tenant_id AND movement_id=NEW.movement_id) THEN
+     WHERE tenant_id=NEW.tenant_id AND movement_id=NEW.movement_id FOR UPDATE) THEN
    RAISE EXCEPTION 'REPOSITIONING_CANNOT_CARRY_CONSIGNMENT';
  END IF;
  RETURN NEW;
@@ -211,6 +215,52 @@ END$$;
 CREATE TRIGGER guard_repositioning_cargo
  BEFORE INSERT OR UPDATE ON tms.movement_consignment_segment
  FOR EACH ROW EXECUTE FUNCTION tms.reject_repositioning_allocation();
+
+-- Serialize every schedule/cargo writer on the same movement. Check both
+-- ends of each invariant; child-only guards cannot protect parent updates.
+CREATE OR REPLACE FUNCTION tms.guard_movement_call_change()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ IF TG_OP='UPDATE' AND (NEW.tenant_id,NEW.movement_id,NEW.call_id)
+   IS DISTINCT FROM (OLD.tenant_id,OLD.movement_id,OLD.call_id) THEN
+  RAISE EXCEPTION 'IMMUTABLE_MOVEMENT_CALL_IDENTITY';
+ END IF;
+ PERFORM 1 FROM tms.transport_movement WHERE tenant_id=NEW.tenant_id
+  AND movement_id=NEW.movement_id FOR UPDATE;
+ IF TG_OP='UPDATE' AND NEW.sequence IS DISTINCT FROM OLD.sequence AND EXISTS(
+  SELECT 1 FROM tms.transport_leg WHERE tenant_id=OLD.tenant_id AND movement_id=OLD.movement_id
+  AND (origin_call_id=OLD.call_id OR destination_call_id=OLD.call_id)) THEN
+  RAISE EXCEPTION 'REFERENCED_CALL_SEQUENCE_IMMUTABLE';
+ END IF;
+ IF EXISTS (
+  WITH calls AS (
+   SELECT sequence,planned_arrival_at,planned_departure_at FROM tms.transport_call
+    WHERE tenant_id=NEW.tenant_id AND movement_id=NEW.movement_id AND call_id<>NEW.call_id
+   UNION ALL SELECT NEW.sequence,NEW.planned_arrival_at,NEW.planned_departure_at
+  ), instants AS (
+   SELECT sequence,1 AS position,planned_arrival_at AS instant FROM calls
+   UNION ALL SELECT sequence,2,planned_departure_at FROM calls
+  ), ordered AS (
+   SELECT instant,lag(instant) OVER (ORDER BY sequence,position) AS previous
+   FROM instants WHERE instant IS NOT NULL
+  ) SELECT 1 FROM ordered WHERE instant<previous
+ ) THEN RAISE EXCEPTION 'REVERSED_MOVEMENT_CHRONOLOGY'; END IF;
+ RETURN NEW;
+END$$;
+CREATE TRIGGER guard_movement_call_change BEFORE INSERT OR UPDATE ON tms.transport_call
+ FOR EACH ROW EXECUTE FUNCTION tms.guard_movement_call_change();
+
+CREATE OR REPLACE FUNCTION tms.guard_movement_repositioning()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ IF NEW.repositioning_only AND EXISTS (SELECT 1 FROM tms.movement_consignment_segment
+  WHERE tenant_id=OLD.tenant_id AND movement_id=OLD.movement_id) THEN
+  RAISE EXCEPTION 'REPOSITIONING_CANNOT_CARRY_CONSIGNMENT';
+ END IF;
+ RETURN NEW;
+END$$;
+CREATE TRIGGER guard_movement_repositioning BEFORE UPDATE ON tms.transport_movement
+ FOR EACH ROW EXECUTE FUNCTION tms.guard_movement_repositioning();
 
 -- Version snapshots and route facts are append-only. Promotion of a plan to
 -- APPROVED/COMMITTED is separately CP-governed; no runtime role can perform it.

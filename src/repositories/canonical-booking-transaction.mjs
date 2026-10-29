@@ -1,6 +1,6 @@
 /**
  * HYB-04/TMS-API-02: canonical first-party transactional booking port.
- * Shared #409 is PROPOSED, not an accepted/current CP authority. No
+ * Shared #409 is accepted design, outside active CP contracts/registries. No
  * arbitrary callbacks, vendor JWTs or client flags may enable effects.
  */
 export class CurrentAuthorityUnavailable extends Error {
@@ -32,7 +32,7 @@ export function previewCanonicalBookingTransaction(input){
   fieldOrder:Object.freeze([...fields]),
   values:Object.freeze(fields.map(k=>input[k])),
   missingAuthority:Object.freeze([
-    "ACCEPTED_TMS_NATIVE_EXECUTION_CONTRACT","CURRENT_IAM_WORKLOAD",
+    "ACTIVE_TMS_NATIVE_EXECUTION_CONTRACT","CURRENT_IAM_WORKLOAD",
     "CURRENT_CP_LEGAL_ACTOR_MANDATE","CURRENT_CAPABILITY_AND_BINDING",
     "LEASE_GENERATION_AND_REVOCATION","TRANSACTIONAL_OUTBOX"
   ])
@@ -51,9 +51,9 @@ export function inspectProposedAuthorityFence(proposed,expected,now=new Date()){
     !digest(proposed.intent_digest)||
     !Number.isFinite(Date.parse(proposed.expires_at))||
     Date.parse(proposed.expires_at)<=now.getTime()||
-    Date.parse(proposed.expires_at)>now.getTime()+300000)
+    Date.parse(proposed.expires_at)>now.getTime()+5000)
   return Object.freeze({status:"BLOCKED",canExecute:false});
- return Object.freeze({status:"SHAPE_ONLY_CONTRACT_PROPOSED",
+ return Object.freeze({status:"SHAPE_ONLY_RUNTIME_NOT_ADOPTED",
   canExecute:false,reason:"NOT_AN_AUTHENTICATED_CP_OPERATION_LEASE"});
 }
 /** Methods deliberately refuse before touching the injected database. */

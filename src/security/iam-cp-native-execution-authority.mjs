@@ -9,8 +9,9 @@
 const nonempty=v=>typeof v==="string" && v.length>0 && v.length<=256;
 const sha=v=>typeof v==="string"&&/^sha256:[a-f0-9]{64}$/.test(v);
 const internalOps=new Set([
-  "native.provision","native.dispatch","native.tracking.ingest",
-  "native.reconcile","native.suspend","native.deprovision"
+  "tms.plan.revise","tms.booking.intent.create","tms.booking.submit",
+  "tms.booking.reconcile","tms.capacity.hold","tms.capacity.release",
+  "tms.movement.dispatch","tms.native.provision","tms.native.suspend","tms.native.deprovision"
 ]);
 export class NativeAuthorityDenied extends Error {
   constructor(reason="IAM_CP_EXECUTION_AUTHORITY_UNAVAILABLE") {
@@ -75,7 +76,8 @@ export function createHeldNativeExecutionAuthority({
       }catch {
         throw new NativeAuthorityDenied("IAM_VERIFICATION_UNAVAILABLE");
       }
-      const at=now();
+      let at=now();
+      assert(Number.isFinite(at),"INVALID_AUTHORITY_CLOCK");
       assert(iam?.source==="IAM_VERIFIED"&&iam.active===true&&
         iam.actorType==="workload"&&nonempty(iam.subject)&&
         nonempty(iam.issuer)&&issuers.has(iam.issuer)&&
@@ -97,6 +99,8 @@ export function createHeldNativeExecutionAuthority({
       }catch{
         throw new NativeAuthorityDenied("CP_CURRENT_CONTEXT_UNAVAILABLE");
       }
+      at=now();
+      assert(Number.isFinite(at)&&iam.expiresAt>at&&iam.notBefore<=at,"IAM_EXPIRED_DURING_CP_READBACK");
       assert(cp?.source==="CP_READBACK"&&cp.decision==="ALLOW"&&
         nonempty(cp.decisionId)&&nonempty(cp.principalId)&&
         cp.contextId===request.contextId&&

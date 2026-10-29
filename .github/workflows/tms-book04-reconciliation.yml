@@ -18,7 +18,7 @@ permissions:
 jobs:
   provider-independent-simulation:
     name: BOOK-04 immutable carrier intent and signed synthetic readback
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     steps:
       - name: Checkout reviewed stacked TMS

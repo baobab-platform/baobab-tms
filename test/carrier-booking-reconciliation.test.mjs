@@ -93,3 +93,9 @@ test("no fixture key or caller forged CP grant can execute provider side effects
   await assert.rejects(p[method]({source:"CP_READBACK",decision:"ALLOW",
    tenantId:base.tenantId,subject:"fake"}),CarrierReconciliationDenied);
 });
+
+test("plan revision has exactly one positive safe integer representation",()=>{
+ for(const planRevision of ["1","-1","not-a-revision",0,-1,1.5,null,Number.MAX_SAFE_INTEGER+1])
+  assert.throws(()=>createBookingIntentDraft({...base,planRevision}),/MISSING_CANONICAL_BOOKING_SCOPE/);
+ assert.equal(createBookingIntentDraft({...base,planRevision:1}).planRevision,1);
+});

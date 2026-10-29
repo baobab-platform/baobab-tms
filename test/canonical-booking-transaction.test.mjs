@@ -28,7 +28,7 @@ test("candidate CP scope readback is never an executable lease",()=>{
  const a={tenant_id:input.tenantId,operating_organisation_id:input.operatingOrganisationId,
  legal_entity_id:input.legalEntityId,market_id:input.marketId,
  capability_binding_id:input.nativeBindingReference,intent_digest:input.intentDigest,
- fencing_generation:2,expires_at:"2026-10-28T12:02:00Z"};
+ fencing_generation:2,expires_at:"2026-10-28T12:00:05Z"};
  assert.equal(inspectProposedAuthorityFence(a,a,now).canExecute,false);
  for(const changed of [{tenant_id:"tn_other"},{legal_entity_id:"legal-b"},
   {market_id:"market-ug"},{fencing_generation:1},

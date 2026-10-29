@@ -18,7 +18,7 @@ permissions:
 jobs:
   deny-unverified:
     name: HYB-04 synthetic IAM CP chain and no-execution negative matrix
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 8
     steps:
       - name: Checkout TMS

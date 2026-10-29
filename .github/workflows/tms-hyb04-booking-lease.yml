@@ -17,12 +17,14 @@ on:
       - "scripts/hybrid/verify-booking-lease-pg17.py"
       - ".github/workflows/tms-hyb04-booking-lease.yml"
   workflow_dispatch:
+env:
+  COMPOSE_PROJECT_NAME: tms-audit-${{ github.run_id }}-${{ github.run_attempt }}
 permissions:
   contents: read
 jobs:
   lease-cas:
     name: Actual PG17 generation CAS and permanent authority hold
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 25
     steps:
       - name: Checkout TMS stack
@@ -62,9 +64,13 @@ jobs:
       - name: Destroy DB and secret resources
         if: always()
         run: |
-          set +e
+          set -euo pipefail
           file="$RUNNER_TEMP/tms-lease.env"
+          trap 'rm -f "$file"' EXIT
           if [ -f "$file" ]; then
             docker compose --env-file "$file" -f ops/hybrid/docker-compose.data-plane.yml down -v --remove-orphans
+            test -z "$(docker ps -aq --filter label=com.docker.compose.project=$COMPOSE_PROJECT_NAME)"
+            test -z "$(docker volume ls -q --filter label=com.docker.compose.project=$COMPOSE_PROJECT_NAME)"
+            test -z "$(docker network ls -q --filter label=com.docker.compose.project=$COMPOSE_PROJECT_NAME)"
             rm -f "$file"
           fi
