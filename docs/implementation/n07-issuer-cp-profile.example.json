@@ -24,5 +24,9 @@
     "marketId": "market-za",
     "purpose": "RUNTIME",
     "countryCode": "ZA"
-  }
+  },
+  "expected_legal_entity_id": "REPLACE-CANONICAL-LEGAL-ENTITY",
+  "native_binding_id": "REPLACE-REVIEWED-NATIVE-BINDING",
+  "operation_reference": "tms.booking.submit:REPLACE-REVIEWED-NATIVE-BINDING",
+  "legal_actor_token_file": "/run/private/tms-n07/legal-actor.token"
 }
