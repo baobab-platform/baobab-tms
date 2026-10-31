@@ -13,6 +13,7 @@ import { execFileSync } from "node:child_process";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createN07TmsIssuerCpReadback } from "../src/security/n07-issuer-cp-real-readback.mjs";
+import { createN07TmsLegalActorReader } from "../src/security/n07-cp-legal-actor-readback.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const SHA = /^[a-f0-9]{40}$/;
@@ -42,9 +43,13 @@ function profile(path) {
     !pins || !["baobab-iam","baobab-cp","baobab-tms","shared"].every(
       name=>SHA.test(pins[name])) ||
     !uuid.test(p.context_id) ||
-    !p.expected || p.expected.purpose !== "RUNTIME")
+    !p.expected || p.expected.purpose !== "RUNTIME" ||
+    !["UG","ZA"].includes(p.expected.countryCode) ||
+    !/^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*$/.test(p.expected_legal_entity_id ?? "") ||
+    !/^[A-Za-z0-9][A-Za-z0-9._:-]{2,127}$/.test(p.native_binding_id ?? "") ||
+    p.operation_reference !== "tms.booking.submit:"+p.native_binding_id)
     throw new Held();
-  for (const field of ["subject_token_file","validator_token_file","issuer_secret_file"]) {
+  for (const field of ["subject_token_file","validator_token_file","issuer_secret_file","legal_actor_token_file"]) {
     if (typeof p[field] !== "string" || !isAbsolute(p[field]))
       throw new Held();
   }
@@ -81,17 +86,38 @@ async function main() {
     trustedSubjectClientId:p.subject_client_id,
     issuerClientSecret:privateRead(p.issuer_secret_file,8192).trim(),
   });
-  const result=await gate.observe({
-    contextId:p.context_id,
-    subjectToken:privateRead(p.subject_token_file,8192).trim(),
-    validatorToken:privateRead(p.validator_token_file,8192).trim(),
-    expected:p.expected,
+  const subjectToken=privateRead(p.subject_token_file,8192).trim();
+  const validatorToken=privateRead(p.validator_token_file,8192).trim();
+  const legalActorToken=privateRead(p.legal_actor_token_file,8192).trim();
+  if(new Set([subjectToken,validatorToken,legalActorToken]).size!==3)
+    throw new Held();
+  const expected=p.expected;
+  const observe=()=>gate.observe({
+    contextId:p.context_id,subjectToken,validatorToken,expected,
   });
+  const result=await observe();
+  const legal=createN07TmsLegalActorReader({
+    cpOrigin:p.cp_origin,expectedLegalEntityId:p.expected_legal_entity_id,
+  });
+  const assess=()=>legal.assess({
+    contextId:p.context_id,market:expected.countryCode,
+    operationReference:p.operation_reference,accessToken:legalActorToken,
+  });
+  const legalBefore=await assess();
+  const after=await observe();
+  const legalAfter=await assess();
+  if(result.canExecute!==false||after.canExecute!==false||
+    legalBefore.canExecute!==false||legalAfter.canExecute!==false||
+    legalBefore.mandateDigest!==legalAfter.mandateDigest||
+    legalBefore.validUntil<=Date.now()||
+    legalAfter.validUntil<=Date.now())
+    throw new Held();
   original(process.argv[3],{
     schema:"baobab.tms.n07.issuer-cp-observation.v1",
-    classification:result.status,
+    classification:"REAL_ISSUER_CP_LEGAL_READBACK_UNATTESTED",
     run_id:p.run_id,source_pins:p.source_pins,
     issuer_current:true,cp_context_current:true,
+    cp_legal_mandate_observed:true,issuer_cp_second_readback:true,
     original_signed_jwt_verified:false,
     cp_legal_mandate_verified:false,
     native_binding_verified:false,
