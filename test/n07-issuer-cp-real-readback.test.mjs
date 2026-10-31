@@ -7,7 +7,7 @@ import {
 const contextId = "10000000-0000-4000-8000-000000000008";
 const now = Date.parse("2026-10-31T12:00:00Z");
 const expected = {tenantId:"tn_tmsleased",organisationId:"019a0915-a8c0-7000-8000-000000000002",
-  marketId:"market-za",purpose:"RUNTIME"};
+  marketId:"market-za",countryCode:"ZA",purpose:"RUNTIME"};
 const config = {
   issuer:"https://issuer.example.test/",
   introspectionUrl:"https://issuer-admin.example.test/admin/oauth2/introspect",
