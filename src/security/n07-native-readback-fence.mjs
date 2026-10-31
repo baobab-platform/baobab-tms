@@ -68,7 +68,7 @@ export function createN07NativeAuthorityPreflight({
           before.operation!=="tms.booking.submit"||
           before.contextId!==contextId||before.legalActorCurrent!==true||
           before.canExecute!==false||before.providerAuthorized!==false||
-          typeof before.mandateDigest!=="string"||
+          !(/^[0-9a-f]{64}$/.test(before.mandateDigest??""))||
           !Number.isSafeInteger(before.validUntil)||
           before.validUntil<=now())throw new Error();
         // The existing native HYB-04 port requires separately current IAM and
@@ -87,6 +87,17 @@ export function createN07NativeAuthorityPreflight({
           after.validUntil<=now()||before.validUntil<=now()||
           after.legalActorCurrent!==true||
           after.canExecute!==false||after.providerAuthorized!==false)
+          throw new Error();
+        // Recheck original subject token and CP context after the potentially
+        // slow native/legal observations. Revocation mid-attempt must not
+        // produce a stale "current" diagnostic.
+        const finalIssuerCp=await realIssuerCp.observe({
+          subjectToken,validatorToken,contextId,expected,
+        });
+        if(finalIssuerCp?.status!==observed.status||
+          finalIssuerCp.currentIssuerObserved!==true||
+          finalIssuerCp.currentCpContextObserved!==true||
+          finalIssuerCp.canExecute!==false||finalIssuerCp.canActivate!==false)
           throw new Error();
         return Object.freeze({
           status:"REAL_ISSUER_CP_LEGAL_AND_NATIVE_PREFLIGHT_NON_EXECUTABLE",
