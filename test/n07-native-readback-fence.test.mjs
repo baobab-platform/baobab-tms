@@ -45,7 +45,7 @@ function fixture({issuerError=false,legalError=false,nativeError=false,
       source:"CP_LA05_CURRENT_AUTHORIZED_MANDATE_ONLY",
       role:"SERVICE_PROVIDER_OF_RECORD",operation:"tms.booking.submit",contextId:ctx,
       legalActorCurrent:true,canExecute:false,providerAuthorized:false,
-      mandateDigest:legalChanged&&checked===2?"different-mandate":"same-mandate",
+      mandateDigest:legalChanged&&checked===2?"b".repeat(64):"a".repeat(64),
       validUntil:legalExpired?0:Date.now()+3000,
     };
   }};
@@ -65,7 +65,8 @@ test("real issuer+CP, current legal actor, native guard, second legal read all p
   const f=fixture(),r=await f.fence.assess(request);
   assert.deepEqual(f.steps,[
     "issuer-current-CP-current-issuer-current","CP-LA05A-legal-current",
-    "native-HYB04-proof-only","CP-LA05A-legal-current"]);
+    "native-HYB04-proof-only","CP-LA05A-legal-current",
+    "issuer-current-CP-current-issuer-current"]);
   assert.equal(r.status,"REAL_ISSUER_CP_LEGAL_AND_NATIVE_PREFLIGHT_NON_EXECUTABLE");
   assert.equal(r.legalMandateObserved,true);
   assert.equal(r.canExecute,false);
