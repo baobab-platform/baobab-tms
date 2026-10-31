@@ -43,9 +43,23 @@ async function jsonOriginal(fetcher, target, init) {
   if (!response || response.status !== 200 ||
     !/^application\/json(?:;|$)/i.test(response.headers.get("content-type") ?? "") ||
     response.redirected) throw new N07TmsReadbackDenied();
-  const raw = await response.arrayBuffer();
-  if (raw.byteLength > 16384) throw new N07TmsReadbackDenied();
-  const decoded = new TextDecoder("utf-8", { fatal: true }).decode(raw);
+  if (!response.body) throw new N07TmsReadbackDenied();
+  const reader = response.body.getReader();
+  const chunks = [];
+  let size = 0;
+  try {
+    for (;;) {
+      const part = await reader.read();
+      if (part.done) break;
+      size += part.value.byteLength;
+      if (size > 16384) throw new N07TmsReadbackDenied();
+      chunks.push(part.value);
+    }
+  } finally {
+    await reader.cancel().catch(() => undefined);
+  }
+  const decoded = new TextDecoder("utf-8", { fatal: true }).decode(
+    Buffer.concat(chunks.map(b => Buffer.from(b)), size));
   const value = JSON.parse(decoded);
   if (!value || typeof value !== "object" || Array.isArray(value))
     throw new N07TmsReadbackDenied();
@@ -59,13 +73,13 @@ async function jsonOriginal(fetcher, target, init) {
  */
 export function createN07TmsIssuerCpReadback({
   issuer, introspectionUrl, cpOrigin, audience, issuerClientId,
-  issuerClientSecret, trustedValidatorClientId, fetcher=fetch,
+  issuerClientSecret, trustedSubjectClientId, fetcher=fetch,
   now=()=>Date.now(),
 }={}) {
   try {
     if (process.env.NODE_TLS_REJECT_UNAUTHORIZED === "0" ||
       !allowedAudience.test(audience) ||
-      ![issuerClientId, issuerClientSecret, trustedValidatorClientId].every(
+      ![issuerClientId, issuerClientSecret, trustedSubjectClientId].every(
         v => typeof v === "string" && v.length >= 4 && v.length <= 4096) ||
       issuerClientSecret.length < 16 ||
       typeof fetcher !== "function" || typeof now !== "function")
@@ -97,8 +111,8 @@ export function createN07TmsIssuerCpReadback({
       if (value.active !== true || value.iss !== issuer ||
         !Array.isArray(audiences) || audiences.length !== 1 ||
         audiences[0] !== audience ||
-        value.client_id !== trustedValidatorClientId ||
-        value.sub !== trustedValidatorClientId ||
+        value.client_id !== trustedSubjectClientId ||
+        value.sub !== trustedSubjectClientId ||
         typeof value.scope !== "string" ||
         !value.scope.split(" ").includes("tms:booking:submit") ||
         value.token_type && value.token_type.toLowerCase() !== "bearer" ||
