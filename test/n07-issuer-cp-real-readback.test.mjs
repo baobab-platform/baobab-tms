@@ -15,14 +15,14 @@ const config = {
   audience:"baobab-tms",
   issuerClientId:"tms-private-validation-client",
   issuerClientSecret:"synthetic-original-private-secret",
-  trustedValidatorClientId:"baobab-dev-tms-subject",
+  trustedSubjectClientId:"baobab-dev-tms-subject",
   now:()=>now,
 };
 
 function fixture(changes={}) {
   const calls=[];
-  const issuer = {active:true,iss:config.issuer,sub:config.trustedValidatorClientId,
-    client_id:config.trustedValidatorClientId,aud:config.audience,
+  const issuer = {active:true,iss:config.issuer,sub:config.trustedSubjectClientId,
+    client_id:config.trustedSubjectClientId,aud:config.audience,
     scope:"tms:booking:submit",exp:Math.floor((now+60_000)/1000),iat:Math.floor((now-10_000)/1000)};
   const cp = {context_id:contextId,tenant_id:expected.tenantId,
     organisation_id:expected.organisationId,market_id:expected.marketId,
