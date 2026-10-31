@@ -37,6 +37,22 @@ Status: DRAFT, SOURCE IMPLEMENTED, NO NATIVE BOOKING ACCEPTANCE.
   absent private original. Unit HTTP doubles do not demonstrate a real
   provider, real CP or independent source readback.
 
+## Native HYB-04 preflight composition
+
+src/security/n07-native-readback-fence.mjs connects the two distinct
+verification components **in strict order**: first the real original
+Hydra/current CP readback, then the existing HYB-04 native
+IAM/CP operation-specific proof assessment. Every context, token,
+Tenant/Organisation/Market and tms.booking.submit operation must match
+both. If either verifier is unavailable/changes, the second stage
+or native execution is refused. Successful return is still explicitly
+REAL_CONTEXT_AND_NATIVE_PREFLIGHT_NON_EXECUTABLE:
+canExecute=false, bookingAccepted=false, legalActorCertified=false.
+Its execute method always refuses. This is not a provider acceptance
+or real legal-actor mandate. Unit-negative tests under
+test/n07-native-readback-fence.test.mjs prove that no native
+proof can bypass a failed issuer/CP observation.
+
 ## Actual canonical registry and binding dependencies
 
 Shared currently does not allocate an ACTIVE registered baobab-tms
