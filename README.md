@@ -25,6 +25,21 @@ Read the [2026-10-25 governance ruling](docs/adr/ADR-GOVERNANCE-2026-10-25.md). 
 
 Canonical cross-engine identity, event types, capability keys and wire contracts are governed by [baobab-platform/shared](https://github.com/baobab-platform/shared). Accepted Shared contract authority is not changed by a TMS document. The existing Trade shipment event producer remains Trade until a separate Shared reconciliation.
 
+## IAM-N07 — real issuer/CP readback (development, non-executable)
+
+The development operator now has a source-pinned real Hydra-introspection
+and CP PlatformContextValidation readback producer under
+scripts/n07-real-issuer-cp-observe.mjs and
+src/security/n07-issuer-cp-real-readback.mjs. It rechecks the original
+OAuth bearer after the current CP read, uses a separate validator
+credential, refuses unknown Tenant/Organisation/Market, and never
+sets canExecute=true. It requires actual independently provisioned
+registered TMS subject/validator clients; no current Shared registration
+is silently created by this TMS change. There is still **no
+qualified native booking endpoint** or accepted live carrier operation.
+See docs/implementation/N07-current-issuer-cp-real-readback.md and
+IAM #152. The foundation /readyz remains 503.
+
 ## Self-hosted development
 
 The repository currently retains template `.baobab/*.example` and `.devcontainer/*.example` profiles. Application dependencies, migrations, runnable services and a production container are **not yet established**. Do not copy template YAML into a production provider-support claim.
