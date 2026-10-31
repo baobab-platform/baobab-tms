@@ -53,6 +53,62 @@ or real legal-actor mandate. Unit-negative tests under
 test/n07-native-readback-fence.test.mjs prove that no native
 proof can bypass a failed issuer/CP observation.
 
+## CP LA-05A current legal mandate and resource-only boundary
+
+The private operation-specific adapter
+src/security/n07-cp-legal-actor-readback.mjs uses the **existing
+implemented** CP endpoint POST /internal/legal-actor/v1/assess and the
+Shared organisation/v2/LegalActorResolution contract, with:
+role=SERVICE_PROVIDER_OF_RECORD, activity=B2B_TRANSPORT_BOOKING,
+market=server-owned UG/ZA, operation_reference pinned to
+tms.booking.submit:<reviewed-native-binding>. Its *distinct*
+CP-audience bearer belongs to the TMS workload whose current Context
+is already verified; the subject token must have the separate TMS
+resource audience. CP resolves and approves the actual mandate and
+canonical LEGAL ENTITY (not a UUID), or denies. The reader verifies a
+fresh evaluated_at, unexpired valid_until, matching legal entity,
+unchanged mandate digest and provider_permissions_granted=false;
+no browser actor or vendor user can pick these facts.
+
+src/security/n07-native-readback-fence.mjs requires real original
+Hydra→CP context→Hydra, CP LA-05A mandate, native operation/binding
+source port, CP LA-05A mandate again and one final Hydra→CP→Hydra
+readback. Every stage must match the exact Context, canonical Tenant,
+Organisation, Market, country, binding and tms.booking.submit
+operation. Any changed mandate, stale issuer, foreign Principal or
+unavailable CP denies. **Native provider execution still always
+DENIES**: this is a non-executable admission preflight only.
+
+src/http/n07-native-resource.mjs supplies an independently scoped
+private diagnostic resource endpoint. An actual HTTP workload bearer
+for baobab-tms is required; a Kratos/Thamani human BFF cookie, caller
+Tenant/Organisation/Market/LegalActor header, foreign Context,
+unknown operation or missing preflight cannot pass. Even full
+readback returns HTTP 503, execution_authority=false and
+booking_accepted=false. It provides **no booking/dispatch/transport
+execution route**. The foundation's /readyz remains 503. Only an owner
+can bind this component behind a private development listener; no
+public server deployment is added.
+
+The owner-private original producer
+scripts/n07-real-issuer-cp-observe.mjs now additionally requires the
+distinct legal_actor_token_file, canonical expected_legal_entity_id,
+native_binding_id and matching operation_reference. It makes two
+actual issuer/CP observations around two CP LA-05A legal reads and
+records only minimized source-bound, non-authorizing originals.
+The producer always exits 3 on a fully performed HTTP *observation*,
+never 0 for a native booking acceptance; an unavailable provider,
+mandate, source or credential exits 2.
+
+Canonical **Shared #422** proposes only PROVISIONED TMS clients; a
+source branch cannot promote those to ACTIVE. **Infrastructure #69**
+proposes an additional source-pinned real Hydra/Kratos/CP/Redis
+development component run based on the currently compatible
+Shared #421 / CP #455 N02 pin, which does NOT yet adopt Shared #422.
+The two run profiles must not be relabeled as a single complete
+TMS live scenario. A later governed CP+IAM/Shared adoption and real
+source-pinned TMS resource provider remain essential.
+
 ## Actual canonical registry and binding dependencies
 
 Shared currently does not allocate an ACTIVE registered baobab-tms
