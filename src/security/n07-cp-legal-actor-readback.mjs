@@ -4,6 +4,8 @@
  * This is a legal-actor fact for a source-bound RUNTIME Context, NOT
  * booking permission, provider readiness, capability binding or transport.
  */
+import {createHash} from "node:crypto";
+
 export class N07LegalActorDenied extends Error {
   constructor() {
     super("TMS_CURRENT_LEGAL_ACTOR_AUTHORITY_UNAVAILABLE");
@@ -110,6 +112,12 @@ export function createN07TmsLegalActorReader({
             operation:"tms.booking.submit",contextId,
             legalActorCurrent:true,
             validUntil:Math.min(until,t+5000),
+            // Digest only to detect mandate/policy switch across the same
+            // operation; original CP references never leave private evidence.
+            mandateDigest:createHash("sha256")
+              .update(resolution.mandate_id+"\0"+
+                resolution.responsible_legal_entity_id+"\0"+
+                resolution.policy_reference).digest("hex"),
             canExecute:false,
             providerAuthorized:false,
             // Deliberately no mandate ID or evidence references exported to
