@@ -27,5 +27,9 @@ test("original worksheet has no credential or real source pin",()=>{
   assert.equal(profile.environment,"development");
   assert.equal(profile.source_pins["baobab-tms"],"0".repeat(40));
   assert.equal(profile.issuer_secret_file.startsWith("/run/private/"),true);
+  assert.equal(profile.legal_actor_token_file.startsWith("/run/private/"),true);
+  assert.equal(profile.expected.countryCode,"ZA");
+  assert.match(profile.expected_legal_entity_id,/^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*$/);
+  assert.equal(profile.operation_reference,"tms.booking.submit:"+profile.native_binding_id);
   assert.ok(!JSON.stringify(profile).includes("client_secret"));
 });
