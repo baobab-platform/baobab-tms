@@ -13,6 +13,7 @@ export class N07LegalActorDenied extends Error {
 }
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const legal=/^[a-zA-Z0-9][a-zA-Z0-9._:-]{2,159}$/;
+const canonicalLegal=/^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*$/;
 const token=v=>typeof v==="string"&&v.length>=16&&v.length<=8192&&
   !/[\x00-\x1f\x7f]/.test(v);
 const exactly=(x,keys)=>x!==null&&typeof x==="object"&&!Array.isArray(x)&&
@@ -68,7 +69,7 @@ export function createN07TmsLegalActorReader({
 }={}){
   try{
     if(process.env.NODE_TLS_REJECT_UNAUTHORIZED==="0"||
-      !UUID.test(expectedLegalEntityId??"")||typeof fetcher!=="function"||
+      !canonicalLegal.test(expectedLegalEntityId??"")||expectedLegalEntityId.length>63||typeof fetcher!=="function"||
       typeof now!=="function")throw new Error();
     const endpoint=trustedOrigin(cpOrigin)+"/internal/legal-actor/v1/assess";
     return Object.freeze({
