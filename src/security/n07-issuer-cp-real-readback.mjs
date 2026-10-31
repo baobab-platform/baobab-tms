@@ -130,7 +130,8 @@ export function createN07TmsIssuerCpReadback({
         try {
           if (!tokenString(subjectToken) || !tokenString(validatorToken) ||
             subjectToken === validatorToken ||
-            !exact(expected,["tenantId","organisationId","marketId","purpose"]) ||
+            !exact(expected,["tenantId","organisationId","marketId","countryCode","purpose"]) ||
+            !["UG","ZA"].includes(expected.countryCode) ||
             expected.purpose !== "RUNTIME") throw new Error();
           const shape = buildCpContextValidationRequest({contextId,subjectToken});
           const first = await issuerCurrent(subjectToken);
@@ -144,7 +145,9 @@ export function createN07TmsIssuerCpReadback({
             body:JSON.stringify(shape.body),
           });
           const context = inspectCpValidationReadback({
-            contextId,reply:cpResult,expected,now:new Date(now()),
+            contextId,reply:cpResult,
+            expected:{tenantId:expected.tenantId,organisationId:expected.organisationId,
+              marketId:expected.marketId,purpose:expected.purpose},now:new Date(now()),
           });
           if (context.canExecute !== false || context.canActivate !== false)
             throw new Error();
