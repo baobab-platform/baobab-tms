@@ -1,0 +1,27 @@
+{
+  "schema": "baobab.tms.n07.issuer-cp-original.v1",
+  "environment": "development",
+  "run_id": "00000000000000000000000000000000",
+  "source_pins": {
+    "baobab-iam": "0000000000000000000000000000000000000000",
+    "baobab-cp": "0000000000000000000000000000000000000000",
+    "baobab-tms": "0000000000000000000000000000000000000000",
+    "shared": "0000000000000000000000000000000000000000"
+  },
+  "issuer": "https://iam.example.invalid/",
+  "introspection_url": "https://iam-admin.example.invalid/admin/oauth2/introspect",
+  "cp_origin": "https://cp.example.invalid",
+  "audience": "baobab-tms",
+  "issuer_client_id": "REPLACE_CURRENT_REGISTERED_INTROSPECTOR",
+  "subject_client_id": "REPLACE_CURRENT_REGISTERED_TMS_CALLER",
+  "issuer_secret_file": "/run/private/tms-n07/introspector.secret",
+  "subject_token_file": "/run/private/tms-n07/subject.token",
+  "validator_token_file": "/run/private/tms-n07/validator.token",
+  "context_id": "00000000-0000-4000-8000-000000000000",
+  "expected": {
+    "tenantId": "tn_replace",
+    "organisationId": "00000000-0000-4000-8000-000000000000",
+    "marketId": "market-za",
+    "purpose": "RUNTIME"
+  }
+}
