@@ -1,15 +1,23 @@
-# Foundation traits only, not a capability/provider activation.
-# Experimental: no container, no live TMS business endpoints.
+# Foundation repository classification only; NOT CP/provider registration.
+# ADR-TMS-0001/0020/0021: Node 24 headless kernel; hybrid native providers
+# remain separate and uncertified. Experimental lifecycle is intentional.
 schema_version: 1
 repository:
   lifecycle: experimental
 capabilities:
   - engine
+  - node
   - documentation
+  - github-actions
 environment:
   baobab_dev:
-    required: false
+    required: true
+    profile: full
+package_managers:
+  node: npm
 artifacts:
+  # A Dev Container is not a releasable TMS runtime image.
   container: false
 security:
-  sast_provider: fallback
+  # TMS is public with JavaScript supported by CodeQL; Foundation owns SAST.
+  sast_provider: codeql

@@ -1,0 +1,63 @@
+# Independent DEV-10 source/image smoke; not a fresh user Codespace.
+# The real Codespaces GHCR entitlement and HYB native execution remain separate.
+name: TMS DEV-10 Toolchain and Image
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  packages: read
+jobs:
+  source:
+    name: Exact Node pin, locked npm and headless tests
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - name: Enforce exact Node and frozen dependency graph
+        run: |
+          set -euo pipefail
+          test "$(node --version)" = "v$(cat .node-version)"
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run check
+  image:
+    name: Pinned full-profile image and native-user frozen lifecycle
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Authenticate Actions GHCR identity (not Codespaces user identity)
+        env:
+          TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin >/dev/null
+      - name: Verify exact published image manifest
+        run: docker buildx imagetools inspect ghcr.io/baobab-platform/baobab-dev:1.4.4@sha256:9603f0e7402aa85771e904db1c20f2ecc02f705131b266cb4ec3d1c24ea58ae4 >/dev/null
+      - name: Run real locked lifecycle in an owned isolated copy
+        env:
+          IMAGE: "ghcr.io/baobab-platform/baobab-dev:1.4.4@sha256:9603f0e7402aa85771e904db1c20f2ecc02f705131b266cb4ec3d1c24ea58ae4"
+        run: |
+          set -euo pipefail
+          docker run --rm --user vscode \
+            -e CI=true -e COREPACK_ENABLE_NETWORK=0 -e COREPACK_DEFAULT_TO_LATEST=0 \
+            -v "$GITHUB_WORKSPACE:/source:ro" -w /tmp "$IMAGE" bash -c '
+              set -euo pipefail
+              mkdir -p /tmp/tms-check
+              cp -R /source/. /tmp/tms-check/
+              cd /tmp/tms-check
+              test "$(node --version)" = "v$(cat .node-version)"
+              baobab-verify --contract
+              npm ci --ignore-scripts --no-audit --no-fund
+              npm run check
+            '

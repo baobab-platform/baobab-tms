@@ -1,0 +1,25 @@
+# DEV-10 / ADR-TMS-0001, 0020, 0021: Shared owns platform contracts.
+# This executes actual Foundation baseline, reproducibility, runtime, environment,
+# SAST/security/dependency review and no-runtime-container classification.
+# The TMS experimental lifecycle and candidate-only capability declaration remain.
+name: Foundation Repository Gates
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "23 5 * * 1"
+  workflow_dispatch:
+permissions:
+  contents: read
+  packages: read
+  actions: read
+  security-events: write
+jobs:
+  foundation:
+    uses: baobab-platform/shared/.github/workflows/foundation-repository-gates.yml@ef683c9f77d149c28f4ff3bcc59ca9aa2a514d7a
+    secrets:
+      SHARED_READ_TOKEN: ${{ secrets.SHARED_READ_TOKEN }}
+    with:
+      foundation_ref: "ef683c9f77d149c28f4ff3bcc59ca9aa2a514d7a"
+      dependency_review_enabled: true
