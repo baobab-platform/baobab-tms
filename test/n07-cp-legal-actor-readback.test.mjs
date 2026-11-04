@@ -57,6 +57,11 @@ test("unknown mandate, foreign legal entity, stale or fake grant fail even when 
     {legal_actor_resolution:{...base.legal_actor_resolution,valid_until:new Date(moment-100).toISOString()}},
     {legal_actor_resolution:{...base.legal_actor_resolution,evaluated_at:new Date(moment-6000).toISOString()}},
     {legal_actor_resolution:{...base.legal_actor_resolution,evidence_references:[]}},
+    {legal_actor_resolution:{...base.legal_actor_resolution,evidence_references:[""]}},
+    {legal_actor_resolution:{...base.legal_actor_resolution,evidence_references:[17]}},
+    {legal_actor_resolution:{...base.legal_actor_resolution,evidence_references:["x".repeat(501)]}},
+    {legal_actor_resolution:{...base.legal_actor_resolution,policy_reference:""}},
+    {legal_actor_resolution:{...base.legal_actor_resolution,policy_reference:"x".repeat(501)}},
     {legal_actor_resolution:{...base.legal_actor_resolution,mandate_id:"none"}},
   ];
   for(const change of bad){
@@ -69,7 +74,10 @@ test("caller cannot choose activity, role, market, or operation grant",async()=>
   for(const change of [
     {contextId:"foreign"}, {market:"US"},{market:"za"},
     {operationReference:"tms.native.provision:reviewed-operation"},
-    {accessToken:"bearer-too-short"},
+    // The previous literal was 16 characters and met the documented bound.
+    // Exercise the actual rejected boundary; no token authenticity is asserted
+    // by this source-only CP double.
+    {accessToken:"x".repeat(15)},
   ]){
     await assert.rejects(x.reader.assess({...input,...change}),N07LegalActorDenied);
   }

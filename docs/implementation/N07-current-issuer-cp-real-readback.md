@@ -173,3 +173,24 @@ the real issuer/CP HTTP readback reported current context.
 
 DO NOT MERGE until exact-head CI and owner validation. No protected
 staging/production action or provider-support promotion is authorised.
+
+
+## 4 November 2026 source corrections
+
+The CP legal-actor response guard now enforces Shared's nonempty string
+references and 500-character limits for policy and every evidence reference.
+HTTP 200 with empty, mistyped or oversized references remains denied.
+The short-bearer regression now uses exactly 15 characters: its old prose
+literal was 16 characters and legitimately met the existing minimum. No
+issuer or CP check is removed. All 95 source tests passed before the new
+reference negatives; rerun `node --test test/*.test.mjs` after changes.
+
+The secret-scan failure in run `41231343149` was a historical prose match,
+not an issued credential. Its exact commit/path/rule/line fingerprint is
+recorded in `.gitleaksignore`; scanning of all other history and future
+findings remains enabled. No branch history is rewritten.
+
+Real N07 issuer/CP readbacks depend on accepted adoption of consolidated
+Shared #430, currently unmerged. This preflight still returns
+`canExecute=false`; DEV-08 native booking, provider binding/commit fencing
+and actual provider acceptance remain BLOCKED.

@@ -1,0 +1,4 @@
+# Exact historical prose false positive from CI run 41231343149. The matched
+# text describes token/context matching, not a credential. Keep full-history
+# scanning and review history; no directory, rule or future match is excluded.
+92178e7c5dc294a94aa4574c7c05857d3079f6d7:docs/implementation/N07-current-issuer-cp-real-readback.md:generic-api-key:45

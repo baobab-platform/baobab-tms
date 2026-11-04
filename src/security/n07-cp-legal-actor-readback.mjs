@@ -18,6 +18,10 @@ const legal=/^[a-zA-Z0-9][a-zA-Z0-9._:-]{2,159}$/;
 const canonicalLegal=/^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*$/;
 const token=v=>typeof v==="string"&&v.length>=16&&v.length<=8192&&
   !/[\x00-\x1f\x7f]/.test(v);
+// Shared LegalActorResolution requires original, nonempty references of at
+// most 500 characters. An HTTP 200 with empty or mistyped evidence is not a
+// current legal mandate. References remain private and are never logged.
+const reference=v=>typeof v==="string"&&v.length>=1&&v.length<=500;
 const exactly=(x,keys)=>x!==null&&typeof x==="object"&&!Array.isArray(x)&&
   Object.keys(x).length===keys.length&&keys.every(k=>Object.hasOwn(x,k));
 function trustedOrigin(value) {
@@ -99,9 +103,10 @@ export function createN07TmsLegalActorReader({
             resolution?.outcome!=="AUTHORIZED"||
             !UUID.test(resolution.mandate_id??"")||
             resolution.responsible_legal_entity_id!==expectedLegalEntityId||
-            typeof resolution.policy_reference!=="string"||
+            !reference(resolution.policy_reference)||
             !Array.isArray(resolution.evidence_references)||
             resolution.evidence_references.length===0||
+            !resolution.evidence_references.every(reference)||
             !Number.isFinite(t)||!Number.isFinite(evaluated)||
             !Number.isFinite(until)||evaluated>t||
             t-evaluated>5000||until<=t||
