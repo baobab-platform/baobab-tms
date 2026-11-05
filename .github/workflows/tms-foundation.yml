@@ -8,6 +8,13 @@ on:
       - "src/**"
       - "test/**"
       - "package.json"
+      - "package-lock.json"
+      - ".node-version"
+      - ".baobab/environment.yaml"
+      - ".baobab/repository.yaml"
+      - ".devcontainer/**"
+      - ".github/workflows/foundation.yml"
+      - ".github/workflows/dev10-environment.yml"
       - "db/**"
       - ".baobab/capability-provider.yaml"
       - ".github/workflows/tms-foundation.yml"
@@ -16,6 +23,13 @@ on:
       - "src/**"
       - "test/**"
       - "package.json"
+      - "package-lock.json"
+      - ".node-version"
+      - ".baobab/environment.yaml"
+      - ".baobab/repository.yaml"
+      - ".devcontainer/**"
+      - ".github/workflows/foundation.yml"
+      - ".github/workflows/dev10-environment.yml"
       - "db/**"
       - ".baobab/capability-provider.yaml"
       - ".github/workflows/tms-foundation.yml"
@@ -32,10 +46,13 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Node 24
+      - name: Exact Node 24
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: "24"
+          node-version-file: .node-version
+          cache: npm
+      - name: Frozen npm install
+        run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Verify syntax and adversarial foundation tests
         run: npm run check
       - name: Checkout exact Shared contract revision

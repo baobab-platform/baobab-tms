@@ -1,0 +1,49 @@
+{
+  "name": "Baobab TMS — Node 24 headless kernel (development only)",
+  "image": "ghcr.io/baobab-platform/baobab-dev:1.4.4@sha256:9603f0e7402aa85771e904db1c20f2ecc02f705131b266cb4ec3d1c24ea58ae4",
+  "remoteUser": "vscode",
+  "updateRemoteUserUID": true,
+  "init": true,
+  "hostRequirements": {
+    "cpus": 4,
+    "memory": "8gb",
+    "storage": "32gb"
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
+      "moby": false,
+      "dockerDashComposeVersion": "v2"
+    }
+  },
+  "containerEnv": {
+    "COREPACK_ENABLE_NETWORK": "0",
+    "COREPACK_DEFAULT_TO_LATEST": "0",
+    "COREPACK_ENABLE_DOWNLOAD_PROMPT": "0"
+  },
+  "forwardPorts": [
+    4080
+  ],
+  "portsAttributes": {
+    "4080": {
+      "label": "TMS development liveness only (readiness always denied)",
+      "visibility": "private",
+      "onAutoForward": "silent"
+    }
+  },
+  "otherPortsAttributes": {
+    "visibility": "private",
+    "onAutoForward": "silent"
+  },
+  "updateContentCommand": "node --test test/dev10-environment.test.mjs",
+  "postCreateCommand": "baobab-verify --contract && test \"$(node --version)\" = \"v$(cat .node-version)\" && npm ci --ignore-scripts --no-audit --no-fund && npm run check",
+  "waitFor": "postCreateCommand",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "github.vscode-github-actions",
+        "redhat.vscode-yaml",
+        "dbaeumer.vscode-eslint"
+      ]
+    }
+  }
+}

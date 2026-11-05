@@ -1,6 +1,6 @@
 # Baobab TMS — Transportation Management and Logistics Execution Engine
 
-> **Current status:** Foundation-0 architecture and template configuration. **No headless TMS service, live carrier integration, active canonical capability or production certification has been demonstrated in this repository.**
+> **Current status:** Experimental first-party Node 24 kernel and CI/Dev Container development tooling. A loopback-only liveness probe exists; readiness deliberately fails. **No certified transport service, live carrier integration, active canonical capability or production certification has been demonstrated.**
 
 Baobab TMS is a reusable, **headless, self-hosted** transport-execution engine for independently entitled Baobab tenants, including Thamani and ZuriBeans. It models canonical **LogisticsShipment, Consignment, Cargo, TransportPlan, TransportRoute, TransportMovement, TransportLeg, TransportCall, Booking, Capacity, Delivery** and sourced operational events.
 
@@ -27,7 +27,9 @@ Canonical cross-engine identity, event types, capability keys and wire contracts
 
 ## Self-hosted development
 
-The repository currently retains template `.baobab/*.example` and `.devcontainer/*.example` profiles. Application dependencies, migrations, runnable services and a production container are **not yet established**. Do not copy template YAML into a production provider-support claim.
+The developer-tooling contracts are active at `.baobab/environment.yaml`, `.baobab/repository.yaml` and `.devcontainer/devcontainer.json`; the earlier `*.example` files remain only as historical scaffolding. The current first-party Node 24 development kernel is dependency-free and uses a committed minimal `package-lock.json`. A local development-only liveness probe exists, but native Fleetbase/Open TMS operations, production packaging and full runtime provider qualification are not established. Do not copy these development declarations into a CP provider-support claim.
+
+To develop in Codespaces, use the pinned Dev Container profile (Node 24, PostgreSQL 17 **client**, Docker CLI). It installs the frozen npm workspace and executes `npm run check` without starting the native hybrid providers. See [DEV-10 TMS developer workflow](docs/development/dev10-tms-tooling.md) for private image access, operating boundaries and acceptance limitations.
 
 Proposed delivery increments are documented in the [ADR programme](docs/adr/README.md) with API, database, identity, provider adapter, tracking, safety/compliance and operational acceptance gates.
 
