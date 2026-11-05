@@ -6,7 +6,7 @@
 import { constants } from "node:fs";
 import {
   closeSync, existsSync, fstatSync, lstatSync, mkdirSync,
-  openSync, readFileSync, statSync, writeFileSync,
+  openSync, readFileSync, writeFileSync,
 } from "node:fs";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
@@ -64,7 +64,8 @@ function profile(path) {
 function original(directory,doc) {
   if (!isAbsolute(directory)) throw new Held();
   if (!existsSync(directory)) mkdirSync(directory,{mode:0o700,recursive:false});
-  const s = statSync(directory);
+  // lstat refuses a symlinked output directory even when its target is private.
+  const s = lstatSync(directory);
   if (!s.isDirectory() || s.uid !== process.getuid() || (s.mode & 0o077) !== 0)
     throw new Held();
   const bytes=Buffer.from(JSON.stringify(doc)+"\n");
