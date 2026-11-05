@@ -61,7 +61,7 @@ function profile(path) {
   return p;
 }
 
-function original(directory,doc) {
+export function original(directory,doc) {
   if (!isAbsolute(directory)) throw new Held();
   if (!existsSync(directory)) mkdirSync(directory,{mode:0o700,recursive:false});
   // lstat refuses a symlinked output directory even when its target is private.
@@ -130,9 +130,13 @@ async function main() {
   process.exitCode=3;
 }
 
-try {
-  await main();
-} catch {
-  process.stderr.write("TMS_N07_AUTHORITY_BLOCKED_NO_ACCEPTANCE\n");
-  process.exitCode=2;
+// Importing this file for custody regression tests never runs the live
+// issuer/CP operator probe or alters the importing process exit status.
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  try {
+    await main();
+  } catch {
+    process.stderr.write("TMS_N07_AUTHORITY_BLOCKED_NO_ACCEPTANCE\n");
+    process.exitCode=2;
+  }
 }
