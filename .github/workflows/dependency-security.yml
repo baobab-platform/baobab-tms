@@ -1,0 +1,39 @@
+# BA-SEC-DEP-001 source audit: native dependency checks without protected 
+# environment credentials, issuer activation, provider simulation or deployment.
+name: Native Dependency Security Maintenance
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "13 3 * * *"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  npm-absence-invariant:
+    name: Do not silently introduce npm dependencies without a lock and audit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24.21.0"
+      - name: Fail closed on untracked third-party dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'JS'
+          const p=require('./package.json');
+          for(const key of ['dependencies','devDependencies','optionalDependencies','peerDependencies']) {
+            if(Object.keys(p[key]||{}).length) {
+              throw new Error('untracked third-party dependencies: add a committed npm lock and native npm audit first');
+            }
+          }
+          JS
+          # An experimental TMS with zero external npm packages has nothing
+          # npm audit can attest; external Fleetbase/open_tms upstreams are
+          # separately locked source proposals, NOT a qualified native engine.
