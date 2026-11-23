@@ -1,0 +1,22 @@
+{
+  "name": "baobab-tms Development",
+  "image": "ghcr.io/baobab-platform/baobab-dev:1.4.4",
+  "remoteUser": "vscode",
+  "updateRemoteUserUID": true,
+  "init": true,
+  "postCreateCommand": "node --version",
+  "waitFor": "postCreateCommand",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "github.vscode-github-actions",
+        "redhat.vscode-yaml"
+      ]
+    }
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "24.21.0"
+    }
+  }
+}
